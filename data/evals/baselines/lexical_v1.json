@@ -1,0 +1,2231 @@
+{
+  "canonical_gates": {
+    "checks": {
+      "empty_results": {
+        "actual": 6,
+        "expected": 6,
+        "passed": true
+      },
+      "metadata_exact": {
+        "actual": 24,
+        "expected": 24,
+        "passed": true
+      },
+      "metadata_false_positives": {
+        "actual": 0,
+        "expected": 0,
+        "passed": true
+      },
+      "semantic_hit_at_5": {
+        "actual": 6,
+        "expected": 6,
+        "passed": true
+      },
+      "semantic_mrr": {
+        "actual": 1.0,
+        "expected": 1.0,
+        "passed": true
+      }
+    },
+    "passed": true
+  },
+  "cases": [
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "qara rəngdə 128 GB 2000-3000 AZN arası iPhone",
+      "query_id": "gq_001",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "returned_total": 3,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003",
+        "prd_smartphones_004",
+        "prd_smartphones_005",
+        "prd_smartphones_006",
+        "prd_smartphones_007",
+        "prd_smartphones_008",
+        "prd_smartphones_009",
+        "prd_smartphones_010"
+      ],
+      "expected_total": 10,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003",
+        "prd_smartphones_004",
+        "prd_smartphones_005"
+      ],
+      "missed_product_ids": [
+        "prd_smartphones_006",
+        "prd_smartphones_007",
+        "prd_smartphones_008",
+        "prd_smartphones_009",
+        "prd_smartphones_010"
+      ],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Apple SYN-PH-APL-001 modeli",
+      "query_id": "gq_002",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003",
+        "prd_smartphones_004",
+        "prd_smartphones_005"
+      ],
+      "returned_total": 10,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_004",
+        "prd_smartphones_005",
+        "prd_smartphones_006",
+        "prd_smartphones_008",
+        "prd_smartphones_009",
+        "prd_smartphones_010",
+        "prd_smartphones_011",
+        "prd_smartphones_012",
+        "prd_smartphones_013",
+        "prd_smartphones_015",
+        "prd_smartphones_016",
+        "prd_smartphones_017",
+        "prd_smartphones_018",
+        "prd_smartphones_019",
+        "prd_smartphones_020",
+        "prd_smartphones_022",
+        "prd_smartphones_023",
+        "prd_smartphones_024",
+        "prd_smartphones_025",
+        "prd_smartphones_026",
+        "prd_smartphones_027",
+        "prd_smartphones_029",
+        "prd_smartphones_030",
+        "prd_smartphones_031",
+        "prd_smartphones_032",
+        "prd_smartphones_033",
+        "prd_smartphones_034"
+      ],
+      "expected_total": 28,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_004",
+        "prd_smartphones_005",
+        "prd_smartphones_006",
+        "prd_smartphones_008"
+      ],
+      "missed_product_ids": [
+        "prd_smartphones_009",
+        "prd_smartphones_010",
+        "prd_smartphones_011",
+        "prd_smartphones_012",
+        "prd_smartphones_013",
+        "prd_smartphones_015",
+        "prd_smartphones_016",
+        "prd_smartphones_017",
+        "prd_smartphones_018",
+        "prd_smartphones_019",
+        "prd_smartphones_020",
+        "prd_smartphones_022",
+        "prd_smartphones_023",
+        "prd_smartphones_024",
+        "prd_smartphones_025",
+        "prd_smartphones_026",
+        "prd_smartphones_027",
+        "prd_smartphones_029",
+        "prd_smartphones_030",
+        "prd_smartphones_031",
+        "prd_smartphones_032",
+        "prd_smartphones_033",
+        "prd_smartphones_034"
+      ],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "stokda olan smartfonlar 2399.99 AZN-dək",
+      "query_id": "gq_003",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_004",
+        "prd_smartphones_005",
+        "prd_smartphones_006",
+        "prd_smartphones_008"
+      ],
+      "returned_total": 28,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_smartphones_004",
+        "prd_smartphones_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "gündəlik foto və mobil tətbiqlər üçün telefon",
+      "query_id": "gq_004",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003",
+        "prd_smartphones_004",
+        "prd_smartphones_005"
+      ],
+      "returned_total": 50,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "mövcud olmayan smartfonlar",
+      "query_id": "gq_005",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_tablets_001"
+      ],
+      "expected_total": 1,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_tablets_001"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "mavi Apple iPad",
+      "query_id": "gq_006",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_tablets_001"
+      ],
+      "returned_total": 1,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003",
+        "prd_tablets_004",
+        "prd_tablets_005",
+        "prd_tablets_006",
+        "prd_tablets_007",
+        "prd_tablets_008",
+        "prd_tablets_009",
+        "prd_tablets_010"
+      ],
+      "expected_total": 10,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003",
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "missed_product_ids": [
+        "prd_tablets_006",
+        "prd_tablets_007",
+        "prd_tablets_008",
+        "prd_tablets_009",
+        "prd_tablets_010"
+      ],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Apple SYN-TB-APL-001 modeli",
+      "query_id": "gq_007",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003",
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "returned_total": 10,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_008",
+        "prd_tablets_011",
+        "prd_tablets_013"
+      ],
+      "expected_total": 5,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_008",
+        "prd_tablets_011",
+        "prd_tablets_013"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "stokda olan planşetlər 645.99 AZN-dək",
+      "query_id": "gq_008",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_008",
+        "prd_tablets_011",
+        "prd_tablets_013"
+      ],
+      "returned_total": 5,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "təhsil və qeydlər üçün qələm dəstəkli planşet",
+      "query_id": "gq_009",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003",
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "returned_total": 50,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "mövcud olmayan planşetlər",
+      "query_id": "gq_010",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_003",
+        "prd_laptops_009"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_003",
+        "prd_laptops_009"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "gümüşü Lenovo IdeaPad",
+      "query_id": "gq_011",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_003",
+        "prd_laptops_009"
+      ],
+      "returned_total": 3,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003",
+        "prd_laptops_004",
+        "prd_laptops_005",
+        "prd_laptops_006",
+        "prd_laptops_007",
+        "prd_laptops_008",
+        "prd_laptops_009",
+        "prd_laptops_010"
+      ],
+      "expected_total": 10,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003",
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "missed_product_ids": [
+        "prd_laptops_006",
+        "prd_laptops_007",
+        "prd_laptops_008",
+        "prd_laptops_009",
+        "prd_laptops_010"
+      ],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Lenovo SYN-LP-LEN-001 modeli",
+      "query_id": "gq_012",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003",
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "returned_total": 10,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_004"
+      ],
+      "expected_total": 2,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_004"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "stokda olan noutbuklar 719.99 AZN-dək",
+      "query_id": "gq_013",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_004"
+      ],
+      "returned_total": 2,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "iş və təhsil üçün noutbuk",
+      "query_id": "gq_014",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003",
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "returned_total": 50,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "mövcud olmayan noutbuklar",
+      "query_id": "gq_015",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_010"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_010"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "ağ LG Inverter Split",
+      "query_id": "gq_016",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_010"
+      ],
+      "returned_total": 3,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005",
+        "prd_air_conditioners_006",
+        "prd_air_conditioners_007",
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_009",
+        "prd_air_conditioners_010"
+      ],
+      "expected_total": 10,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "missed_product_ids": [
+        "prd_air_conditioners_006",
+        "prd_air_conditioners_007",
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_009",
+        "prd_air_conditioners_010"
+      ],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "LG SYN-AC-LGE-001 modeli",
+      "query_id": "gq_017",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "returned_total": 10,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_air_conditioners_001"
+      ],
+      "expected_total": 1,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_air_conditioners_001"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "stokda olan kondisionerlər 567.99 AZN-dək",
+      "query_id": "gq_018",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_air_conditioners_001"
+      ],
+      "returned_total": 1,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "ev və kiçik ofis üçün səssiz isitmə soyutma sistemi",
+      "query_id": "gq_019",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "returned_total": 50,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "mövcud olmayan kondisionerlər",
+      "query_id": "gq_020",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_008"
+      ],
+      "expected_total": 2,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_008"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "gümüşü Samsung Vision",
+      "query_id": "gq_021",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_008"
+      ],
+      "returned_total": 2,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_005",
+        "prd_televisions_006",
+        "prd_televisions_007",
+        "prd_televisions_008",
+        "prd_televisions_009",
+        "prd_televisions_010"
+      ],
+      "expected_total": 10,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "missed_product_ids": [
+        "prd_televisions_006",
+        "prd_televisions_007",
+        "prd_televisions_008",
+        "prd_televisions_009",
+        "prd_televisions_010"
+      ],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Samsung SYN-TV-SMS-001 modeli",
+      "query_id": "gq_022",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "returned_total": 10,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_006",
+        "prd_televisions_008",
+        "prd_televisions_011",
+        "prd_televisions_013",
+        "prd_televisions_015"
+      ],
+      "expected_total": 8,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_006",
+        "prd_televisions_008"
+      ],
+      "missed_product_ids": [
+        "prd_televisions_011",
+        "prd_televisions_013",
+        "prd_televisions_015"
+      ],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "stokda olan televizorlar 1186.79 AZN-dək",
+      "query_id": "gq_023",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_006",
+        "prd_televisions_008"
+      ],
+      "returned_total": 8,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "film və ev əyləncəsi üçün böyük ekran",
+      "query_id": "gq_024",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "returned_total": 50,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "mövcud olmayan televizorlar",
+      "query_id": "gq_025",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_003"
+      ],
+      "expected_total": 2,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "ağ Sony Sound",
+      "query_id": "gq_026",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_003"
+      ],
+      "returned_total": 2,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005",
+        "prd_headphones_006",
+        "prd_headphones_007",
+        "prd_headphones_008",
+        "prd_headphones_009",
+        "prd_headphones_010"
+      ],
+      "expected_total": 10,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "missed_product_ids": [
+        "prd_headphones_006",
+        "prd_headphones_007",
+        "prd_headphones_008",
+        "prd_headphones_009",
+        "prd_headphones_010"
+      ],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Sony SYN-HP-SNY-001 modeli",
+      "query_id": "gq_027",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "returned_total": 10,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005",
+        "prd_headphones_009",
+        "prd_headphones_010",
+        "prd_headphones_013",
+        "prd_headphones_015"
+      ],
+      "expected_total": 9,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "missed_product_ids": [
+        "prd_headphones_009",
+        "prd_headphones_010",
+        "prd_headphones_013",
+        "prd_headphones_015"
+      ],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "stokda olan qulaqlıqlar 311.59 AZN-dək",
+      "query_id": "gq_028",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "returned_total": 9,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "musiqi və zəng üçün simsiz audio",
+      "query_id": "gq_029",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "returned_total": 50,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "mövcud olmayan qulaqlıqlar",
+      "query_id": "gq_030",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "canonical",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "metadata"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_smartphones_004",
+        "prd_smartphones_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "gündəlik şəkil çəkmək və proqramlar üçün Apple mobil cihazı",
+      "query_id": "challenge_001",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003",
+        "prd_smartphones_004",
+        "prd_smartphones_005"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic_paraphrase"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "dərsdə qeyd aparmaq və video izləmək üçün Apple cihazı",
+      "query_id": "challenge_002",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003",
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic_paraphrase"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "universitet tapşırıqları və gündəlik ofis işi üçün Lenovo kompüteri",
+      "query_id": "challenge_003",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003",
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic_paraphrase"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "balaca ofisi yayda sərin, qışda isti saxlamaq üçün LG sistemi",
+      "query_id": "challenge_004",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic_paraphrase"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "evdə film gecələri üçün Samsung böyük ekranı",
+      "query_id": "challenge_005",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic_paraphrase"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "gündəlik zənglər və musiqi dinləmək üçün Sony simsiz audio",
+      "query_id": "challenge_006",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "returned_total": 9,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic_paraphrase"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_smartphones_010"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.75,
+      "query": "qara 128 gb ayfon stokda olsun",
+      "query_id": "challenge_007",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003",
+        "prd_smartphones_010"
+      ],
+      "returned_total": 4,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "typo"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "telebe ucun qelem destekli planset",
+      "query_id": "challenge_008",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003",
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "typo"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "is ve ders ucun lenovo notbuk",
+      "query_id": "challenge_009",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003",
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "typo"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "balaca ofis ucun sessiz kandisaner",
+      "query_id": "challenge_010",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "typo"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "film ucun boyuk ekran televizr",
+      "query_id": "challenge_011",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "typo"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.6,
+      "query": "muzqi ve zeng ucun blutus nausnik",
+      "query_id": "challenge_012",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "returned_total": 9,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "typo"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_smartphones_010"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.75,
+      "query": "Apple phone black 128 GB gündəlik istifadə",
+      "query_id": "challenge_013",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003",
+        "prd_smartphones_010"
+      ],
+      "returned_total": 4,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "mixed_language"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_tablets_001"
+      ],
+      "expected_total": 1,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_tablets_001"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Apple tablet blue 128 GB for study",
+      "query_id": "challenge_014",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_tablets_001"
+      ],
+      "returned_total": 1,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "mixed_language"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_003",
+        "prd_laptops_009"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_003",
+        "prd_laptops_009"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Lenovo silver laptop for work 16 GB RAM",
+      "query_id": "challenge_015",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_003",
+        "prd_laptops_009"
+      ],
+      "returned_total": 3,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "mixed_language"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_010"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_010"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "LG air conditioner white 12000 BTU small office",
+      "query_id": "challenge_016",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_010"
+      ],
+      "returned_total": 3,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "mixed_language"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_008"
+      ],
+      "expected_total": 2,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_008"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Samsung silver smart TV 55 inch movies",
+      "query_id": "challenge_017",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_008"
+      ],
+      "returned_total": 2,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "mixed_language"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_003"
+      ],
+      "expected_total": 2,
+      "false_positive_ids": [],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_003"
+      ],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Sony white bluetooth headphones for calls",
+      "query_id": "challenge_018",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_003"
+      ],
+      "returned_total": 2,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "mixed_language"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_smartphones_001"
+      ],
+      "expected_total": 1,
+      "false_positive_ids": [
+        "prd_smartphones_002",
+        "prd_smartphones_003",
+        "prd_smartphones_004",
+        "prd_smartphones_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_smartphones_001"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.2,
+      "query": "SYN-PH-APL-001",
+      "query_id": "challenge_019",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_smartphones_001",
+        "prd_smartphones_002",
+        "prd_smartphones_003",
+        "prd_smartphones_004",
+        "prd_smartphones_005"
+      ],
+      "returned_total": 50,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "exact_identifier"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_tablets_001"
+      ],
+      "expected_total": 1,
+      "false_positive_ids": [
+        "prd_tablets_002",
+        "prd_tablets_003",
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_tablets_001"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.2,
+      "query": "prd_tablets_001",
+      "query_id": "challenge_020",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_tablets_001",
+        "prd_tablets_002",
+        "prd_tablets_003",
+        "prd_tablets_004",
+        "prd_tablets_005"
+      ],
+      "returned_total": 50,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "exact_identifier"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_laptops_001"
+      ],
+      "expected_total": 1,
+      "false_positive_ids": [
+        "prd_laptops_002",
+        "prd_laptops_003",
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_laptops_001"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.2,
+      "query": "Lenovo IdeaPad SYN-LP-LEN-001",
+      "query_id": "challenge_021",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_laptops_001",
+        "prd_laptops_002",
+        "prd_laptops_003",
+        "prd_laptops_004",
+        "prd_laptops_005"
+      ],
+      "returned_total": 50,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "exact_identifier"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_air_conditioners_001"
+      ],
+      "expected_total": 1,
+      "false_positive_ids": [
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_air_conditioners_001"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.2,
+      "query": "SYN-AC-LGE-001",
+      "query_id": "challenge_022",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003",
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_005"
+      ],
+      "returned_total": 50,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "exact_identifier"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_televisions_001"
+      ],
+      "expected_total": 1,
+      "false_positive_ids": [
+        "prd_televisions_002",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_televisions_001"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.2,
+      "query": "prd_televisions_001",
+      "query_id": "challenge_023",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003",
+        "prd_televisions_004",
+        "prd_televisions_005"
+      ],
+      "returned_total": 50,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "exact_identifier"
+    },
+    {
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_product_ids": [
+        "prd_headphones_001"
+      ],
+      "expected_total": 1,
+      "false_positive_ids": [
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "first_hit_rank": 1,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_headphones_001"
+      ],
+      "missed_product_ids": [],
+      "outcome": "partial",
+      "precision_at_5": 0.2,
+      "query": "Sony Sound SYN-HP-SNY-001",
+      "query_id": "challenge_024",
+      "reciprocal_rank": 1.0,
+      "returned_product_ids": [
+        "prd_headphones_001",
+        "prd_headphones_002",
+        "prd_headphones_003",
+        "prd_headphones_004",
+        "prd_headphones_005"
+      ],
+      "returned_total": 50,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "exact_identifier"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "mövcud olmayan marka smartfon",
+      "query_id": "challenge_025",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "negative"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "12000 BTU Apple planşet",
+      "query_id": "challenge_026",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "negative"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "Apple markalı noutbuk",
+      "query_id": "challenge_027",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "negative"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "mövcud olmayan kondisioner markası",
+      "query_id": "challenge_028",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "negative"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "128 GB yaddaşlı Samsung televizor",
+      "query_id": "challenge_029",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "negative"
+    },
+    {
+      "empty_result_correct": true,
+      "expect_empty": true,
+      "expected_product_ids": [],
+      "expected_total": 0,
+      "false_positive_ids": [],
+      "first_hit_rank": null,
+      "hit_at_5": false,
+      "hit_product_ids": [],
+      "missed_product_ids": [],
+      "outcome": "passed",
+      "precision_at_5": 1.0,
+      "query": "12000 BTU Sony qulaqlıq",
+      "query_id": "challenge_030",
+      "reciprocal_rank": 0.0,
+      "returned_product_ids": [],
+      "returned_total": 0,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": true,
+      "type": "negative"
+    }
+  ],
+  "dataset": {
+    "dataset_version": "1.0.0",
+    "product_count": 300,
+    "products_sha256": "0c750dcc28bfe6b58ccd0597b5157039bbed6aead8ad717ea66b930ae01749ba"
+  },
+  "schema_version": 1,
+  "search_version": "lexical_v1",
+  "suites": {
+    "canonical": {
+      "case_count": 30,
+      "empty_case_count": 6,
+      "empty_result_accuracy": 1.0,
+      "exact_total_count_accuracy": 0.8,
+      "failed": 0,
+      "hit_at_5": 1.0,
+      "mean_precision_at_5": 0.9,
+      "mean_reciprocal_rank": 1.0,
+      "mean_top_5_coverage": 1.0,
+      "partial": 6,
+      "passed": 24
+    },
+    "challenge": {
+      "case_count": 30,
+      "empty_case_count": 6,
+      "empty_result_accuracy": 1.0,
+      "exact_total_count_accuracy": 0.366667,
+      "failed": 0,
+      "hit_at_5": 1.0,
+      "mean_precision_at_5": 0.595833,
+      "mean_reciprocal_rank": 1.0,
+      "mean_top_5_coverage": 1.0,
+      "partial": 19,
+      "passed": 11
+    }
+  },
+  "total_cases": 60
+}

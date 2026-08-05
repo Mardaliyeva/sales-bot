@@ -76,6 +76,25 @@ python -m pytest -m integration
 Default testlər real OpenRouter çağırışı etmir. Integration testlər yalnız adı `_test` ilə bitən
 `TEST_DATABASE_URL` bazasında işləyir.
 
+## Product retrieval baseline
+
+Lokal söz və metadata əsaslı `product_search` nəticəsini 30 canonical və 30 challenge sorğusu ilə
+yoxlamaq üçün:
+
+```powershell
+python -m app.evals.product_retrieval
+```
+
+Komanda cari nəticəni `data/evals/baselines/lexical_v1.json` ilə müqayisə edir və fərq olduqda
+uğursuz exit code qaytarır. Yalnız axtarış dəyişikliyi nəzərdən keçirildikdən sonra baseline-ı bilərəkdən
+yeniləyin:
+
+```powershell
+python -m app.evals.product_retrieval --update-baseline
+```
+
+Bu eval OpenRouter, Supabase və şəbəkə çağırışı etmir; birbaşa lokal kataloq axtarışını ölçür.
+
 ## Mərhələ 1 sərhədi
 
 Qdrant, həqiqi semantic retrieval, sənəd RAG, operator handoff, frontend, streaming və auth bu

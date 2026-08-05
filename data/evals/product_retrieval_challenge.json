@@ -1,0 +1,450 @@
+[
+  {
+    "query_id": "challenge_001",
+    "type": "semantic_paraphrase",
+    "query": "gündəlik şəkil çəkmək və proqramlar üçün Apple mobil cihazı",
+    "filters": {
+      "category_id": "smartphones",
+      "brand": "Apple",
+      "model_family": "iPhone"
+    },
+    "expected_product_ids": [
+      "prd_smartphones_001",
+      "prd_smartphones_002",
+      "prd_smartphones_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_002",
+    "type": "semantic_paraphrase",
+    "query": "dərsdə qeyd aparmaq və video izləmək üçün Apple cihazı",
+    "filters": {
+      "category_id": "tablets",
+      "brand": "Apple",
+      "model_family": "iPad"
+    },
+    "expected_product_ids": [
+      "prd_tablets_001",
+      "prd_tablets_002",
+      "prd_tablets_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_003",
+    "type": "semantic_paraphrase",
+    "query": "universitet tapşırıqları və gündəlik ofis işi üçün Lenovo kompüteri",
+    "filters": {
+      "category_id": "laptops",
+      "brand": "Lenovo",
+      "model_family": "IdeaPad"
+    },
+    "expected_product_ids": [
+      "prd_laptops_001",
+      "prd_laptops_002",
+      "prd_laptops_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_004",
+    "type": "semantic_paraphrase",
+    "query": "balaca ofisi yayda sərin, qışda isti saxlamaq üçün LG sistemi",
+    "filters": {
+      "category_id": "air_conditioners",
+      "brand": "LG",
+      "model_family": "Inverter Split"
+    },
+    "expected_product_ids": [
+      "prd_air_conditioners_001",
+      "prd_air_conditioners_002",
+      "prd_air_conditioners_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_005",
+    "type": "semantic_paraphrase",
+    "query": "evdə film gecələri üçün Samsung böyük ekranı",
+    "filters": {
+      "category_id": "televisions",
+      "brand": "Samsung",
+      "model_family": "Vision"
+    },
+    "expected_product_ids": [
+      "prd_televisions_001",
+      "prd_televisions_002",
+      "prd_televisions_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_006",
+    "type": "semantic_paraphrase",
+    "query": "gündəlik zənglər və musiqi dinləmək üçün Sony simsiz audio",
+    "filters": {
+      "category_id": "headphones",
+      "brand": "Sony",
+      "model_family": "Sound",
+      "connectivity": "Bluetooth"
+    },
+    "expected_product_ids": [
+      "prd_headphones_001",
+      "prd_headphones_002",
+      "prd_headphones_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_007",
+    "type": "typo",
+    "query": "qara 128 gb ayfon stokda olsun",
+    "filters": {
+      "category_id": "smartphones",
+      "brand": "Apple",
+      "model_family": "iPhone",
+      "color_code": "black",
+      "storage_gb": 128,
+      "in_stock": true
+    },
+    "expected_product_ids": [
+      "prd_smartphones_001",
+      "prd_smartphones_002",
+      "prd_smartphones_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_008",
+    "type": "typo",
+    "query": "telebe ucun qelem destekli planset",
+    "filters": {
+      "category_id": "tablets",
+      "brand": "Apple",
+      "model_family": "iPad"
+    },
+    "expected_product_ids": [
+      "prd_tablets_001",
+      "prd_tablets_002",
+      "prd_tablets_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_009",
+    "type": "typo",
+    "query": "is ve ders ucun lenovo notbuk",
+    "filters": {
+      "category_id": "laptops",
+      "brand": "Lenovo",
+      "model_family": "IdeaPad"
+    },
+    "expected_product_ids": [
+      "prd_laptops_001",
+      "prd_laptops_002",
+      "prd_laptops_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_010",
+    "type": "typo",
+    "query": "balaca ofis ucun sessiz kandisaner",
+    "filters": {
+      "category_id": "air_conditioners",
+      "brand": "LG",
+      "model_family": "Inverter Split"
+    },
+    "expected_product_ids": [
+      "prd_air_conditioners_001",
+      "prd_air_conditioners_002",
+      "prd_air_conditioners_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_011",
+    "type": "typo",
+    "query": "film ucun boyuk ekran televizr",
+    "filters": {
+      "category_id": "televisions",
+      "brand": "Samsung",
+      "model_family": "Vision"
+    },
+    "expected_product_ids": [
+      "prd_televisions_001",
+      "prd_televisions_002",
+      "prd_televisions_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_012",
+    "type": "typo",
+    "query": "muzqi ve zeng ucun blutus nausnik",
+    "filters": {
+      "category_id": "headphones",
+      "brand": "Sony",
+      "model_family": "Sound",
+      "connectivity": "Bluetooth"
+    },
+    "expected_product_ids": [
+      "prd_headphones_001",
+      "prd_headphones_002",
+      "prd_headphones_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_013",
+    "type": "mixed_language",
+    "query": "Apple phone black 128 GB gündəlik istifadə",
+    "filters": {
+      "category_id": "smartphones",
+      "brand": "Apple",
+      "model_family": "iPhone",
+      "color_code": "black",
+      "storage_gb": 128,
+      "in_stock": true
+    },
+    "expected_product_ids": [
+      "prd_smartphones_001",
+      "prd_smartphones_002",
+      "prd_smartphones_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_014",
+    "type": "mixed_language",
+    "query": "Apple tablet blue 128 GB for study",
+    "filters": {
+      "category_id": "tablets",
+      "brand": "Apple",
+      "model_family": "iPad",
+      "color_code": "blue",
+      "storage_gb": 128,
+      "in_stock": true
+    },
+    "expected_product_ids": [
+      "prd_tablets_001"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_015",
+    "type": "mixed_language",
+    "query": "Lenovo silver laptop for work 16 GB RAM",
+    "filters": {
+      "category_id": "laptops",
+      "brand": "Lenovo",
+      "model_family": "IdeaPad",
+      "color_code": "silver",
+      "ram_gb": 16,
+      "in_stock": true
+    },
+    "expected_product_ids": [
+      "prd_laptops_001",
+      "prd_laptops_003",
+      "prd_laptops_009"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_016",
+    "type": "mixed_language",
+    "query": "LG air conditioner white 12000 BTU small office",
+    "filters": {
+      "category_id": "air_conditioners",
+      "brand": "LG",
+      "model_family": "Inverter Split",
+      "color_code": "white",
+      "btu": 12000,
+      "in_stock": true
+    },
+    "expected_product_ids": [
+      "prd_air_conditioners_001",
+      "prd_air_conditioners_004",
+      "prd_air_conditioners_010"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_017",
+    "type": "mixed_language",
+    "query": "Samsung silver smart TV 55 inch movies",
+    "filters": {
+      "category_id": "televisions",
+      "brand": "Samsung",
+      "model_family": "Vision",
+      "color_code": "silver",
+      "screen_size_in": 55,
+      "in_stock": true
+    },
+    "expected_product_ids": [
+      "prd_televisions_001",
+      "prd_televisions_008"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_018",
+    "type": "mixed_language",
+    "query": "Sony white bluetooth headphones for calls",
+    "filters": {
+      "category_id": "headphones",
+      "brand": "Sony",
+      "model_family": "Sound",
+      "color_code": "white",
+      "connectivity": "Bluetooth",
+      "in_stock": true
+    },
+    "expected_product_ids": [
+      "prd_headphones_001",
+      "prd_headphones_003"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_019",
+    "type": "exact_identifier",
+    "query": "SYN-PH-APL-001",
+    "filters": {
+      "category_id": "smartphones"
+    },
+    "expected_product_ids": [
+      "prd_smartphones_001"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_020",
+    "type": "exact_identifier",
+    "query": "prd_tablets_001",
+    "filters": {
+      "category_id": "tablets"
+    },
+    "expected_product_ids": [
+      "prd_tablets_001"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_021",
+    "type": "exact_identifier",
+    "query": "Lenovo IdeaPad SYN-LP-LEN-001",
+    "filters": {
+      "category_id": "laptops"
+    },
+    "expected_product_ids": [
+      "prd_laptops_001"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_022",
+    "type": "exact_identifier",
+    "query": "SYN-AC-LGE-001",
+    "filters": {
+      "category_id": "air_conditioners"
+    },
+    "expected_product_ids": [
+      "prd_air_conditioners_001"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_023",
+    "type": "exact_identifier",
+    "query": "prd_televisions_001",
+    "filters": {
+      "category_id": "televisions"
+    },
+    "expected_product_ids": [
+      "prd_televisions_001"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_024",
+    "type": "exact_identifier",
+    "query": "Sony Sound SYN-HP-SNY-001",
+    "filters": {
+      "category_id": "headphones"
+    },
+    "expected_product_ids": [
+      "prd_headphones_001"
+    ],
+    "expect_empty": false
+  },
+  {
+    "query_id": "challenge_025",
+    "type": "negative",
+    "query": "mövcud olmayan marka smartfon",
+    "filters": {
+      "category_id": "smartphones",
+      "brand": "SyntheticMissingBrand"
+    },
+    "expected_product_ids": [],
+    "expect_empty": true
+  },
+  {
+    "query_id": "challenge_026",
+    "type": "negative",
+    "query": "12000 BTU Apple planşet",
+    "filters": {
+      "category_id": "tablets",
+      "brand": "Apple",
+      "btu": 12000
+    },
+    "expected_product_ids": [],
+    "expect_empty": true
+  },
+  {
+    "query_id": "challenge_027",
+    "type": "negative",
+    "query": "Apple markalı noutbuk",
+    "filters": {
+      "category_id": "laptops",
+      "brand": "Apple"
+    },
+    "expected_product_ids": [],
+    "expect_empty": true
+  },
+  {
+    "query_id": "challenge_028",
+    "type": "negative",
+    "query": "mövcud olmayan kondisioner markası",
+    "filters": {
+      "category_id": "air_conditioners",
+      "brand": "SyntheticMissingBrand"
+    },
+    "expected_product_ids": [],
+    "expect_empty": true
+  },
+  {
+    "query_id": "challenge_029",
+    "type": "negative",
+    "query": "128 GB yaddaşlı Samsung televizor",
+    "filters": {
+      "category_id": "televisions",
+      "brand": "Samsung",
+      "storage_gb": 128
+    },
+    "expected_product_ids": [],
+    "expect_empty": true
+  },
+  {
+    "query_id": "challenge_030",
+    "type": "negative",
+    "query": "12000 BTU Sony qulaqlıq",
+    "filters": {
+      "category_id": "headphones",
+      "brand": "Sony",
+      "btu": 12000
+    },
+    "expected_product_ids": [],
+    "expect_empty": true
+  }
+]
