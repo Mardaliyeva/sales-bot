@@ -4,6 +4,7 @@ import hashlib
 import json
 import re
 import unicodedata
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -17,6 +18,12 @@ TOKEN_RE = re.compile(r"[a-z0-9]+")
 
 class CatalogLoadError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class CatalogCandidate:
+    product: dict[str, Any]
+    score: float
 
 
 def normalize_text(value: str) -> str:
@@ -111,6 +118,33 @@ class ProductCatalog:
             applied_filters=self._applied_filters(args),
             items=items,
         )
+
+    def rank_candidates(
+        self,
+        args: ProductSearchArguments,
+        *,
+        limit: int = 20,
+    ) -> list[CatalogCandidate]:
+        if not self.ready:
+            raise CatalogLoadError("Kataloq hazır deyil")
+        if limit <= 0:
+            raise ValueError("Namizəd limiti müsbət olmalıdır")
+
+        filtered = [product for product in self.products if self._matches(product, args)]
+        query_tokens = tokens(args.query)
+        scored = [(self._score(product, args.query, query_tokens), product) for product in filtered]
+        if not self._has_structured_filter(args):
+            scored = [(score, product) for score, product in scored if score > 0]
+        scored.sort(key=lambda pair: (-pair[0], pair[1]["product_id"]))
+        return [
+            CatalogCandidate(product=product, score=score)
+            for score, product in scored[:limit]
+        ]
+
+    def count_filtered(self, args: ProductSearchArguments) -> int:
+        if not self.ready:
+            raise CatalogLoadError("Kataloq hazır deyil")
+        return sum(1 for product in self.products if self._matches(product, args))
 
     @staticmethod
     def _has_structured_filter(args: ProductSearchArguments) -> bool:

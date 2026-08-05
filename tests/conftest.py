@@ -19,4 +19,8 @@ def settings(catalog_path: Path) -> Settings:
         openrouter_api_key="test-openrouter-key",
         product_catalog_path=catalog_path,
         llm_timeout_seconds=1,
+        customer_azure_openai_endpoint=None,
+        customer_azure_openai_api_key=None,
+        qdrant_url=None,
+        qdrant_api_key=None,
     )

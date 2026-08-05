@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -16,13 +18,36 @@ from app.api.routes_sessions import router as sessions_router
 from app.config import Settings, get_settings
 from app.db.repositories import ConversationRepository
 from app.db.session import Database
+from app.embeddings.azure import DEFAULT_TEXT_VERSION, AzureEmbeddingClient
 from app.llm.openrouter_client import OpenRouterClient
 from app.logging_config import configure_logging
+from app.retrieval.hybrid import HybridProductSearch
 from app.tools.catalog import ProductCatalog
 from app.tools.product_search import ProductSearchTool
 from app.tools.registry import ToolRegistry
+from app.vectorstores.qdrant import QdrantProductStore
 
 MAX_REQUEST_BYTES = 16 * 1024
+RUNTIME_VECTOR_TIMEOUT_SECONDS = 4.0
+STARTUP_VECTOR_CHECK_TIMEOUT_SECONDS = 5.0
+
+logger = logging.getLogger(__name__)
+
+
+def _vector_runtime_configured(settings: Settings) -> bool:
+    if not settings.customer_azure_openai_endpoint or not settings.qdrant_url:
+        return False
+    if settings.customer_azure_openai_endpoint == "YOUR_AZURE_ENDPOINT":
+        return False
+    if settings.qdrant_url == "YOUR_QDRANT_CLOUD_URL":
+        return False
+    secrets = (settings.customer_azure_openai_api_key, settings.qdrant_api_key)
+    return all(
+        secret is not None
+        and bool(secret.get_secret_value())
+        and secret.get_secret_value() not in {"YOUR_AZURE_API_KEY", "YOUR_QDRANT_API_KEY", "CHANGE_ME"}
+        for secret in secrets
+    )
 
 
 def create_app(settings_override: Settings | None = None) -> FastAPI:
@@ -35,7 +60,51 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         database = Database(settings.database_url)
         repository = ConversationRepository(database, settings)
         llm = OpenRouterClient(settings)
-        tools = ToolRegistry(ProductSearchTool(catalog), settings.tool_timeout_seconds)
+        embeddings: AzureEmbeddingClient | None = None
+        vector_store: QdrantProductStore | None = None
+        if _vector_runtime_configured(settings):
+            try:
+                embeddings = AzureEmbeddingClient.from_settings(
+                    settings,
+                    timeout_seconds=RUNTIME_VECTOR_TIMEOUT_SECONDS,
+                    max_attempts=1,
+                )
+                vector_store = QdrantProductStore.from_settings(
+                    settings,
+                    timeout_seconds=RUNTIME_VECTOR_TIMEOUT_SECONDS,
+                )
+                status = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        vector_store.status,
+                        [product["product_id"] for product in catalog.products],
+                        expected_dataset_version=catalog.manifest["dataset_version"],
+                        expected_catalog_checksum=catalog.manifest["checksums"]["products_sha256"],
+                        expected_embedding_text_version=DEFAULT_TEXT_VERSION,
+                        expected_embedding_deployment=settings.azure_embedding_model,
+                        expected_embedding_dimensions=embeddings.dimensions,
+                    ),
+                    timeout=STARTUP_VECTOR_CHECK_TIMEOUT_SECONDS,
+                )
+                if not status.ready:
+                    raise RuntimeError("Qdrant product collection runtime üçün hazır deyil")
+                logger.info(
+                    "product_search.semantic_enabled",
+                    extra={"indexed_count": status.indexed_count},
+                )
+            except Exception as exc:
+                logger.warning(
+                    "product_search.semantic_disabled",
+                    extra={"error_type": type(exc).__name__},
+                )
+                if embeddings is not None:
+                    embeddings.close()
+                if vector_store is not None:
+                    vector_store.close()
+                embeddings = None
+                vector_store = None
+
+        product_search = HybridProductSearch(catalog, embeddings, vector_store)
+        tools = ToolRegistry(ProductSearchTool(product_search), settings.tool_timeout_seconds)
 
         app.state.settings = settings
         app.state.catalog = catalog
@@ -43,6 +112,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         app.state.repository = repository
         app.state.llm = llm
         app.state.tools = tools
+        app.state.product_search = product_search
         app.state.lock_manager = SessionLockManager()
         app.state.agent_runtime = AgentRuntime(
             settings=settings,
@@ -53,6 +123,10 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         try:
             yield
         finally:
+            if embeddings is not None:
+                embeddings.close()
+            if vector_store is not None:
+                vector_store.close()
             await llm.close()
             await database.dispose()
 

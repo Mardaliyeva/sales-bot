@@ -90,6 +90,8 @@ class AzureEmbeddingClient:
         settings: Settings,
         *,
         cache_path: Path = DEFAULT_CACHE_PATH,
+        timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS,
+        max_attempts: int = DEFAULT_MAX_ATTEMPTS,
         transport: httpx.BaseTransport | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> AzureEmbeddingClient:
@@ -103,6 +105,8 @@ class AzureEmbeddingClient:
             endpoint=endpoint,
             api_key=api_key.get_secret_value(),
             deployment=settings.azure_embedding_model,
+            timeout_seconds=timeout_seconds,
+            max_attempts=max_attempts,
             cache=EmbeddingCache(cache_path),
             transport=transport,
             sleep=sleep,

@@ -73,8 +73,8 @@ python -m pytest -m "not integration"
 python -m pytest -m integration
 ```
 
-Default testlər real OpenRouter çağırışı etmir. Integration testlər yalnız adı `_test` ilə bitən
-`TEST_DATABASE_URL` bazasında işləyir.
+Default testlər real OpenRouter, Azure və Qdrant çağırışı etmir. Integration testlər yalnız adı
+`_test` ilə bitən `TEST_DATABASE_URL` bazasında işləyir.
 
 ## Azure embedding və Qdrant baseline
 
@@ -102,8 +102,20 @@ python -m app.evals.product_semantic --update-baseline
 python -m app.evals.product_semantic
 ```
 
-Semantic runner OpenRouter və Supabase çağırmır. Bu mərhələdə botun runtime `product_search` davranışı
-hələ lexical olaraq qalır; Qdrant yalnız offline indeksləmə və eval komandalarında işləyir.
+Semantic runner OpenRouter və Supabase çağırmır.
+
+## Hybrid product search runtime
+
+Azure və Qdrant konfiqurasiyası tam olduqda runtime `product_search` üç mənbəni birləşdirir:
+
+- dəqiq `product_id`, SKU və unikal model uyğunluğu;
+- lokal söz əsaslı axtarış;
+- Azure embedding və Qdrant məna əsaslı axtarış.
+
+Nəticələr deterministik RRF sıralaması ilə birləşdirilir. Qiymət və reytinq sıralamalarında mövcud
+lokal katalog davranışı saxlanılır. Azure və ya Qdrant müvəqqəti əlçatan olmadıqda sorğu dayanmır;
+sistem exact və lexical nəticələrlə davam edir. Qdrant collection startup zamanı uyğun deyilsə semantic
+runtime söndürülür, amma API ayağa qalxır və health readiness bundan asılı olmur.
 
 ## Product retrieval baseline
 
@@ -124,8 +136,7 @@ python -m app.evals.product_retrieval --update-baseline
 
 Bu eval OpenRouter, Supabase və şəbəkə çağırışı etmir; birbaşa lokal kataloq axtarışını ölçür.
 
-## Mərhələ 1 sərhədi
+## Hazırkı sərhəd
 
-Qdrant, həqiqi semantic retrieval, sənəd RAG, operator handoff, frontend, streaming və auth bu
-mərhələyə daxil deyil. Lokal lexical search sonrakı mərhələdə eyni tool müqaviləsini saxlayan Qdrant
-adapteri ilə əvəz ediləcək.
+Sənəd RAG, operator handoff, frontend, streaming və auth hazırkı mərhələyə daxil deyil. Public chat və
+`product_search` tool müqaviləsi dəyişmədən saxlanılır.

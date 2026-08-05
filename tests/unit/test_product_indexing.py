@@ -163,11 +163,13 @@ def test_filtered_search_only_returns_matching_products(catalog_path: object) ->
             index_catalog(catalog, FakeEmbeddings(), store)
         args = ProductSearchArguments(query="telefon", category_id="smartphones", brand="Apple")
         hits = store.search([1.0, 0.0], args)
+        candidates = store.search_candidates([1.0, 0.0], args, candidate_limit=20)
         count = store.count_candidates(args)
     finally:
         store.close()
 
     assert count == 10
     assert len(hits) == 5
+    assert len(candidates) == 10
     assert all(hit.payload["category_id"] == "smartphones" for hit in hits)
     assert all(hit.payload["brand"] == "Apple" for hit in hits)

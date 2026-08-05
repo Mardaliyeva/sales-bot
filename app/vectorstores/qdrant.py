@@ -153,7 +153,12 @@ class QdrantProductStore:
         self.vector_size = vector_size
 
     @classmethod
-    def from_settings(cls, settings: Settings) -> QdrantProductStore:
+    def from_settings(
+        cls,
+        settings: Settings,
+        *,
+        timeout_seconds: float = 30.0,
+    ) -> QdrantProductStore:
         if settings.qdrant_url is None or settings.qdrant_url == "YOUR_QDRANT_CLOUD_URL":
             raise VectorStoreError("QDRANT_URL konfiqurasiya edilməyib")
         if settings.qdrant_api_key is None:
@@ -164,7 +169,7 @@ class QdrantProductStore:
         client = QdrantClient(
             url=settings.qdrant_url,
             api_key=api_key,
-            timeout=30,
+            timeout=timeout_seconds,
             prefer_grpc=False,
         )
         return cls(client, collection_name=settings.qdrant_collection_name)
@@ -234,6 +239,15 @@ class QdrantProductStore:
         *,
         candidate_limit: int = DEFAULT_QUERY_CANDIDATES,
     ) -> list[VectorSearchHit]:
+        return self.search_candidates(vector, args, candidate_limit=candidate_limit)[: args.limit]
+
+    def search_candidates(
+        self,
+        vector: list[float],
+        args: ProductSearchArguments,
+        *,
+        candidate_limit: int = DEFAULT_QUERY_CANDIDATES,
+    ) -> list[VectorSearchHit]:
         if len(vector) != self.vector_size:
             raise VectorStoreError("Query embedding ölçüsü collection ilə uyğun deyil")
         response = self.client.query_points(
@@ -252,7 +266,7 @@ class QdrantProductStore:
                 raise VectorStoreError("Qdrant nəticəsində product_id yoxdur")
             hits.append(VectorSearchHit(product_id=product_id, score=float(point.score), payload=payload))
         hits.sort(key=lambda hit: (-hit.score, hit.product_id))
-        return hits[: args.limit]
+        return hits[:candidate_limit]
 
     def status(
         self,
