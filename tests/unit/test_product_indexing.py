@@ -77,6 +77,14 @@ def test_indexing_is_idempotent_and_status_is_ready(catalog_path: object) -> Non
             warnings.simplefilter("ignore", UserWarning)
             first = index_catalog(catalog, FakeEmbeddings(), store)
             second = index_catalog(catalog, FakeEmbeddings(), store)
+        mismatched = store.status(
+            [product["product_id"] for product in catalog.products],
+            expected_dataset_version="1.0.0",
+            expected_catalog_checksum=catalog.manifest["checksums"]["products_sha256"],
+            expected_embedding_text_version="v1",
+            expected_embedding_deployment="different-deployment",
+            expected_embedding_dimensions=2,
+        )
     finally:
         store.close()
 
@@ -85,6 +93,8 @@ def test_indexing_is_idempotent_and_status_is_ready(catalog_path: object) -> Non
     assert second.status.indexed_count == 300
     assert second.status.missing_product_ids == ()
     assert second.status.extra_product_ids == ()
+    assert mismatched.metadata_matches is False
+    assert mismatched.ready is False
 
 
 def test_qdrant_filter_supports_all_product_search_fields() -> None:

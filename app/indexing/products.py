@@ -56,7 +56,14 @@ def index_catalog(
         embedding_text_version=DEFAULT_TEXT_VERSION,
         embedding_deployment=embeddings.deployment,
     )
-    status = store.status([product["product_id"] for product in catalog.products])
+    status = store.status(
+        [product["product_id"] for product in catalog.products],
+        expected_dataset_version=catalog.manifest["dataset_version"],
+        expected_catalog_checksum=checksum,
+        expected_embedding_text_version=DEFAULT_TEXT_VERSION,
+        expected_embedding_deployment=embeddings.deployment,
+        expected_embedding_dimensions=embeddings.dimensions,
+    )
     if not status.ready:
         raise VectorStoreError("Qdrant indeksləmə yoxlaması uğursuz oldu")
     return IndexResult(product_count=len(catalog.products), status=status)
@@ -70,6 +77,7 @@ def _print_status(status: CollectionStatus) -> None:
     print(f"Dataset versiyası: {', '.join(status.dataset_versions) or '-'}")
     print(f"Embedding text versiyası: {', '.join(status.embedding_text_versions) or '-'}")
     print(f"Embedding deployment: {', '.join(status.embedding_deployments) or '-'}")
+    print(f"Metadata uyğundur: {'bəli' if status.metadata_matches else 'xeyr'}")
     print(f"Çatışmayan ID sayı: {len(status.missing_product_ids)}")
     print(f"Artıq ID sayı: {len(status.extra_product_ids)}")
     print(f"Hazırdır: {'bəli' if status.ready else 'xeyr'}")
@@ -106,7 +114,14 @@ def main(argv: Sequence[str] | None = None) -> int:
         catalog.load()
         store = QdrantProductStore.from_settings(settings)
         if args.command == "status":
-            status = store.status([product["product_id"] for product in catalog.products])
+            status = store.status(
+                [product["product_id"] for product in catalog.products],
+                expected_dataset_version=catalog.manifest["dataset_version"],
+                expected_catalog_checksum=catalog.manifest["checksums"]["products_sha256"],
+                expected_embedding_text_version=DEFAULT_TEXT_VERSION,
+                expected_embedding_deployment=settings.azure_embedding_model,
+                expected_embedding_dimensions=3072,
+            )
             _print_status(status)
             return 0 if status.ready else 1
 

@@ -62,9 +62,11 @@ class CollectionStatus:
     missing_product_ids: tuple[str, ...]
     extra_product_ids: tuple[str, ...]
     dataset_versions: tuple[str, ...]
+    catalog_checksums: tuple[str, ...]
     embedding_text_versions: tuple[str, ...]
     embedding_deployments: tuple[str, ...]
     embedding_dimensions: tuple[int, ...]
+    metadata_matches: bool
 
     @property
     def ready(self) -> bool:
@@ -79,6 +81,7 @@ class CollectionStatus:
             and len(self.embedding_text_versions) == 1
             and len(self.embedding_deployments) == 1
             and self.embedding_dimensions == (self.vector_size,)
+            and self.metadata_matches
         )
 
 
@@ -251,7 +254,16 @@ class QdrantProductStore:
         hits.sort(key=lambda hit: (-hit.score, hit.product_id))
         return hits[: args.limit]
 
-    def status(self, expected_product_ids: Sequence[str]) -> CollectionStatus:
+    def status(
+        self,
+        expected_product_ids: Sequence[str],
+        *,
+        expected_dataset_version: str | None = None,
+        expected_catalog_checksum: str | None = None,
+        expected_embedding_text_version: str | None = None,
+        expected_embedding_deployment: str | None = None,
+        expected_embedding_dimensions: int | None = None,
+    ) -> CollectionStatus:
         expected = set(expected_product_ids)
         if not self.client.collection_exists(self.collection_name):
             return CollectionStatus(
@@ -264,9 +276,11 @@ class QdrantProductStore:
                 missing_product_ids=tuple(sorted(expected)),
                 extra_product_ids=(),
                 dataset_versions=(),
+                catalog_checksums=(),
                 embedding_text_versions=(),
                 embedding_deployments=(),
                 embedding_dimensions=(),
+                metadata_matches=False,
             )
         vector_size, distance = self._collection_vector_config()
         payloads = self._all_metadata_payloads()
@@ -275,6 +289,27 @@ class QdrantProductStore:
             for payload in payloads
             if isinstance(payload.get("product_id"), str)
         }
+        dataset_versions = self._unique_strings(payloads, "dataset_version")
+        catalog_checksums = self._unique_strings(payloads, "catalog_checksum")
+        text_versions = self._unique_strings(payloads, "embedding_text_version")
+        deployments = self._unique_strings(payloads, "embedding_deployment")
+        dimensions = tuple(
+            sorted(
+                {
+                    value
+                    for payload in payloads
+                    if isinstance((value := payload.get("embedding_dimensions")), int)
+                }
+            )
+        )
+        expected_checks = (
+            expected_dataset_version is None or dataset_versions == (expected_dataset_version,),
+            expected_catalog_checksum is None or catalog_checksums == (expected_catalog_checksum,),
+            expected_embedding_text_version is None
+            or text_versions == (expected_embedding_text_version,),
+            expected_embedding_deployment is None or deployments == (expected_embedding_deployment,),
+            expected_embedding_dimensions is None or dimensions == (expected_embedding_dimensions,),
+        )
         return CollectionStatus(
             exists=True,
             collection_name=self.collection_name,
@@ -284,18 +319,12 @@ class QdrantProductStore:
             distance=distance,
             missing_product_ids=tuple(sorted(expected - actual_ids)),
             extra_product_ids=tuple(sorted(actual_ids - expected)),
-            dataset_versions=self._unique_strings(payloads, "dataset_version"),
-            embedding_text_versions=self._unique_strings(payloads, "embedding_text_version"),
-            embedding_deployments=self._unique_strings(payloads, "embedding_deployment"),
-            embedding_dimensions=tuple(
-                sorted(
-                    {
-                        value
-                        for payload in payloads
-                        if isinstance((value := payload.get("embedding_dimensions")), int)
-                    }
-                )
-            ),
+            dataset_versions=dataset_versions,
+            catalog_checksums=catalog_checksums,
+            embedding_text_versions=text_versions,
+            embedding_deployments=deployments,
+            embedding_dimensions=dimensions,
+            metadata_matches=all(expected_checks),
         )
 
     @staticmethod
@@ -379,6 +408,7 @@ class QdrantProductStore:
                 with_payload=[
                     "product_id",
                     "dataset_version",
+                    "catalog_checksum",
                     "embedding_text_version",
                     "embedding_deployment",
                     "embedding_dimensions",

@@ -76,6 +76,35 @@ python -m pytest -m integration
 Default testlər real OpenRouter çağırışı etmir. Integration testlər yalnız adı `_test` ilə bitən
 `TEST_DATABASE_URL` bazasında işləyir.
 
+## Azure embedding və Qdrant baseline
+
+`.env` faylında `CUSTOMER_AZURE_OPENAI_ENDPOINT`, `CUSTOMER_AZURE_OPENAI_API_KEY`,
+`AZURE_EMBEDDING_MODEL`, `QDRANT_URL`, `QDRANT_API_KEY` və `QDRANT_COLLECTION_NAME` dəyərlərini
+konfiqurasiya edin. Real açarları `.env.example` faylına yazmayın.
+
+300 məhsulu indeksləmək və vəziyyəti yoxlamaq üçün:
+
+```powershell
+python -m app.indexing.products index
+python -m app.indexing.products status
+```
+
+Embedding cache-ni bilərəkdən keçərək yenidən indeksləmək üçün:
+
+```powershell
+python -m app.indexing.products index --refresh-embeddings
+```
+
+Qdrant semantic retrieval nəticəsini eyni 60 sorğu ilə ölçmək üçün:
+
+```powershell
+python -m app.evals.product_semantic --update-baseline
+python -m app.evals.product_semantic
+```
+
+Semantic runner OpenRouter və Supabase çağırmır. Bu mərhələdə botun runtime `product_search` davranışı
+hələ lexical olaraq qalır; Qdrant yalnız offline indeksləmə və eval komandalarında işləyir.
+
 ## Product retrieval baseline
 
 Lokal söz və metadata əsaslı `product_search` nəticəsini 30 canonical və 30 challenge sorğusu ilə
