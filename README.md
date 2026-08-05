@@ -18,7 +18,7 @@ PowerShell-də virtual environment və dependency-ləri hazırlayın:
 
 ```powershell
 python -m venv .venv
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 python -m pip install -r requirements.lock
 python -m pip install -e . --no-deps
@@ -36,8 +36,8 @@ https://supabase.com/docs/guides/database/connecting-to-postgres
 Migration və server:
 
 ```powershell
-alembic upgrade head
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+python -m alembic upgrade head
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
 ## API
@@ -68,9 +68,9 @@ Health endpoint-ləri: `GET /health/live` və `GET /health/ready`.
 ## Yoxlama
 
 ```powershell
-ruff check .
-pytest -m "not integration"
-pytest -m integration
+python -m ruff check .
+python -m pytest -m "not integration"
+python -m pytest -m integration
 ```
 
 Default testlər real OpenRouter çağırışı etmir. Integration testlər yalnız adı `_test` ilə bitən

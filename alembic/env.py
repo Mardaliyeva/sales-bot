@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import os
+import selectors
+import sys
 from logging.config import fileConfig
 
 from dotenv import load_dotenv
@@ -52,7 +54,17 @@ async def run_async_migrations() -> None:
     await connectable.dispose()
 
 
+def create_windows_selector_event_loop() -> asyncio.AbstractEventLoop:
+    return asyncio.SelectorEventLoop(selectors.SelectSelector())
+
+
 def run_migrations_online() -> None:
+    if sys.platform == "win32":
+        # Psycopg's async implementation requires a selector event loop on Windows.
+        with asyncio.Runner(loop_factory=create_windows_selector_event_loop) as runner:
+            runner.run(run_async_migrations())
+        return
+
     asyncio.run(run_async_migrations())
 
 
