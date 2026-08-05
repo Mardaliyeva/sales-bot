@@ -1,0 +1,252 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.com/schemas/synthetic-product-1.0.0.json",
+  "title": "Synthetic Azerbaijani E-commerce Product",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "product_id",
+    "sku",
+    "dataset_version",
+    "is_synthetic",
+    "language",
+    "name",
+    "slug",
+    "category",
+    "brand",
+    "model",
+    "model_family",
+    "color",
+    "price",
+    "stock",
+    "warranty_months",
+    "rating",
+    "review_count",
+    "short_description",
+    "description",
+    "attributes",
+    "tags",
+    "product_url",
+    "image_urls",
+    "embedding_text",
+    "filter_payload"
+  ],
+  "properties": {
+    "product_id": {"type": "string", "pattern": "^prd_[a-z_]+_[0-9]{3}$"},
+    "sku": {"type": "string", "pattern": "^SYN-[A-Z]{2}-[A-Z]{3}-[0-9]{3}$"},
+    "dataset_version": {"const": "1.0.0"},
+    "is_synthetic": {"const": true},
+    "language": {"const": "az"},
+    "name": {"type": "string", "minLength": 5},
+    "slug": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+    "category": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name"],
+      "properties": {
+        "id": {
+          "enum": ["smartphones", "tablets", "laptops", "air_conditioners", "televisions", "headphones"]
+        },
+        "name": {
+          "enum": ["Smartfonlar", "Planşetlər", "Noutbuklar", "Kondisionerlər", "Televizorlar", "Qulaqlıqlar"]
+        }
+      }
+    },
+    "brand": {"type": "string", "minLength": 2},
+    "model": {"type": "string", "pattern": "^SYN-[A-Z]{2}-[A-Z]{3}-[0-9]{3}$"},
+    "model_family": {"type": "string", "minLength": 2},
+    "color": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "name"],
+      "properties": {
+        "code": {"enum": ["black", "white", "blue", "green", "gold", "gray", "silver", "pink"]},
+        "name": {"enum": ["Qara", "Ağ", "Mavi", "Yaşıl", "Qızılı", "Boz", "Gümüşü", "Çəhrayı"]}
+      }
+    },
+    "price": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["list", "sale", "currency", "discount_percent"],
+      "properties": {
+        "list": {"type": "number", "exclusiveMinimum": 0},
+        "sale": {"type": "number", "exclusiveMinimum": 0},
+        "currency": {"const": "AZN"},
+        "discount_percent": {"type": "integer", "minimum": 0, "maximum": 100}
+      }
+    },
+    "stock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "quantity"],
+      "properties": {
+        "status": {"enum": ["in_stock", "out_of_stock"]},
+        "quantity": {"type": "integer", "minimum": 0}
+      }
+    },
+    "warranty_months": {"type": "integer", "minimum": 1},
+    "rating": {"type": "number", "minimum": 0, "maximum": 5},
+    "review_count": {"type": "integer", "minimum": 0},
+    "short_description": {"type": "string", "minLength": 20},
+    "description": {"type": "string", "minLength": 100},
+    "attributes": {"type": "object"},
+    "tags": {"type": "array", "minItems": 3, "uniqueItems": true, "items": {"type": "string"}},
+    "product_url": {"type": "string", "format": "uri", "pattern": "^https://example\\.com/products/"},
+    "image_urls": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string", "format": "uri", "pattern": "^https://cdn\\.example\\.com/synthetic/"}
+    },
+    "embedding_text": {"type": "string", "minLength": 30},
+    "filter_payload": {
+      "type": "object",
+      "required": ["category_id", "brand", "model_family", "color_code", "sale_price", "currency", "in_stock"],
+      "properties": {
+        "category_id": {"type": "string"},
+        "brand": {"type": "string"},
+        "model_family": {"type": "string"},
+        "color_code": {"type": "string"},
+        "sale_price": {"type": "number"},
+        "currency": {"const": "AZN"},
+        "in_stock": {"type": "boolean"},
+        "storage_gb": {"type": "integer"},
+        "ram_gb": {"type": "integer"},
+        "btu": {"type": "integer"},
+        "screen_size_in": {"type": "number"},
+        "connectivity": {"type": "string"},
+        "active_noise_cancellation": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"category": {"properties": {"id": {"const": "smartphones"}}}}},
+      "then": {"properties": {"attributes": {"$ref": "#/$defs/smartphoneAttributes"}}}
+    },
+    {
+      "if": {"properties": {"category": {"properties": {"id": {"const": "tablets"}}}}},
+      "then": {"properties": {"attributes": {"$ref": "#/$defs/tabletAttributes"}}}
+    },
+    {
+      "if": {"properties": {"category": {"properties": {"id": {"const": "laptops"}}}}},
+      "then": {"properties": {"attributes": {"$ref": "#/$defs/laptopAttributes"}}}
+    },
+    {
+      "if": {"properties": {"category": {"properties": {"id": {"const": "air_conditioners"}}}}},
+      "then": {"properties": {"attributes": {"$ref": "#/$defs/airConditionerAttributes"}}}
+    },
+    {
+      "if": {"properties": {"category": {"properties": {"id": {"const": "televisions"}}}}},
+      "then": {"properties": {"attributes": {"$ref": "#/$defs/televisionAttributes"}}}
+    },
+    {
+      "if": {"properties": {"category": {"properties": {"id": {"const": "headphones"}}}}},
+      "then": {"properties": {"attributes": {"$ref": "#/$defs/headphoneAttributes"}}}
+    }
+  ],
+  "$defs": {
+    "dimensions": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["width", "height", "depth"],
+      "properties": {
+        "width": {"type": "integer", "minimum": 1},
+        "height": {"type": "integer", "minimum": 1},
+        "depth": {"type": "integer", "minimum": 1}
+      }
+    },
+    "smartphoneAttributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storage_gb", "ram_gb", "display_size_in", "main_camera_mp", "battery_mah", "operating_system", "network", "sim_type"],
+      "properties": {
+        "storage_gb": {"enum": [64, 128, 256, 512]},
+        "ram_gb": {"enum": [4, 6, 8, 12]},
+        "display_size_in": {"type": "number"},
+        "main_camera_mp": {"type": "integer"},
+        "battery_mah": {"type": "integer"},
+        "operating_system": {"enum": ["iOS", "Android"]},
+        "network": {"enum": ["4G", "5G"]},
+        "sim_type": {"type": "string"}
+      }
+    },
+    "tabletAttributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["storage_gb", "ram_gb", "display_size_in", "battery_mah", "cellular", "pen_support", "operating_system"],
+      "properties": {
+        "storage_gb": {"enum": [64, 128, 256, 512]},
+        "ram_gb": {"enum": [4, 6, 8, 12]},
+        "display_size_in": {"type": "number"},
+        "battery_mah": {"type": "integer"},
+        "cellular": {"type": "boolean"},
+        "pen_support": {"type": "boolean"},
+        "operating_system": {"enum": ["iPadOS", "Android", "HarmonyOS"]}
+      }
+    },
+    "laptopAttributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_brand", "cpu_model", "ram_gb", "storage_gb", "storage_type", "gpu", "display_size_in", "operating_system", "weight_kg"],
+      "properties": {
+        "cpu_brand": {"enum": ["Intel", "AMD"]},
+        "cpu_model": {"type": "string"},
+        "ram_gb": {"enum": [8, 16, 32]},
+        "storage_gb": {"enum": [256, 512, 1024]},
+        "storage_type": {"const": "SSD"},
+        "gpu": {"type": "string"},
+        "display_size_in": {"type": "number"},
+        "operating_system": {"enum": ["Windows 11", "FreeDOS", "Linux"]},
+        "weight_kg": {"type": "number"}
+      }
+    },
+    "airConditionerAttributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system_type", "inverter", "btu", "coverage_min_m2", "coverage_max_m2", "noise_level_db", "energy_class", "modes", "refrigerant", "indoor_unit_dimensions_mm", "outdoor_unit_dimensions_mm", "wifi"],
+      "properties": {
+        "system_type": {"const": "Inverter Split"},
+        "inverter": {"const": true},
+        "btu": {"enum": [9000, 12000, 18000, 24000]},
+        "coverage_min_m2": {"type": "integer"},
+        "coverage_max_m2": {"type": "integer"},
+        "noise_level_db": {"type": "integer"},
+        "energy_class": {"enum": ["A", "A+", "A++"]},
+        "modes": {"type": "array", "const": ["soyutma", "isitmə"]},
+        "refrigerant": {"enum": ["R32", "R410A"]},
+        "indoor_unit_dimensions_mm": {"$ref": "#/$defs/dimensions"},
+        "outdoor_unit_dimensions_mm": {"$ref": "#/$defs/dimensions"},
+        "wifi": {"type": "boolean"}
+      }
+    },
+    "televisionAttributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["screen_size_in", "resolution", "panel_type", "refresh_rate_hz", "hdr", "smart_tv_os", "hdmi_count"],
+      "properties": {
+        "screen_size_in": {"enum": [43, 50, 55, 65, 75, 85]},
+        "resolution": {"enum": ["Full HD", "4K UHD", "8K UHD"]},
+        "panel_type": {"enum": ["LED", "QLED", "OLED", "Mini LED"]},
+        "refresh_rate_hz": {"enum": [60, 100, 120, 144]},
+        "hdr": {"type": "boolean"},
+        "smart_tv_os": {"type": "string"},
+        "hdmi_count": {"enum": [2, 3, 4]}
+      }
+    },
+    "headphoneAttributes": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["form_factor", "connectivity", "active_noise_cancellation", "battery_hours", "microphone", "charging_type", "water_resistance"],
+      "properties": {
+        "form_factor": {"enum": ["in-ear", "on-ear", "over-ear"]},
+        "connectivity": {"enum": ["Bluetooth", "3.5 mm kabel"]},
+        "active_noise_cancellation": {"type": "boolean"},
+        "battery_hours": {"enum": [0, 6, 8, 20, 30, 40, 60]},
+        "microphone": {"const": true},
+        "charging_type": {"enum": ["USB-C", "tətbiq edilmir"]},
+        "water_resistance": {"enum": ["IPX4", "IPX5", "yoxdur"]}
+      }
+    }
+  }
+}

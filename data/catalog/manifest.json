@@ -1,0 +1,98 @@
+{
+  "dataset_version": "1.0.0",
+  "seed": 20260804,
+  "generated_at": "2026-08-04T00:00:00+04:00",
+  "language": "az",
+  "currency": "AZN",
+  "synthetic": true,
+  "deterministic": true,
+  "description_generation": {
+    "template": 300
+  },
+  "product_count": 300,
+  "category_counts": {
+    "smartphones": 50,
+    "tablets": 50,
+    "laptops": 50,
+    "air_conditioners": 50,
+    "televisions": 50,
+    "headphones": 50
+  },
+  "brand_counts": {
+    "smartphones": {
+      "Apple": 10,
+      "Samsung": 10,
+      "Xiaomi": 10,
+      "Honor": 10,
+      "Oppo": 10
+    },
+    "tablets": {
+      "Apple": 10,
+      "Samsung": 10,
+      "Lenovo": 10,
+      "Huawei": 10,
+      "Xiaomi": 10
+    },
+    "laptops": {
+      "Lenovo": 10,
+      "HP": 10,
+      "Asus": 10,
+      "Acer": 10,
+      "Dell": 10
+    },
+    "air_conditioners": {
+      "LG": 10,
+      "Samsung": 10,
+      "Midea": 10,
+      "Gree": 10,
+      "Bosch": 10
+    },
+    "televisions": {
+      "Samsung": 10,
+      "LG": 10,
+      "Sony": 10,
+      "TCL": 10,
+      "Hisense": 10
+    },
+    "headphones": {
+      "Sony": 10,
+      "JBL": 10,
+      "Samsung": 10,
+      "Apple": 10,
+      "Anker": 10
+    }
+  },
+  "in_stock_count": 252,
+  "discounted_count": 90,
+  "api_page_size": 25,
+  "api_page_count": 12,
+  "golden_query_count": 30,
+  "golden_product_ids": [
+    "prd_smartphones_001",
+    "prd_smartphones_002",
+    "prd_smartphones_003",
+    "prd_tablets_001",
+    "prd_tablets_002",
+    "prd_tablets_003",
+    "prd_laptops_001",
+    "prd_laptops_002",
+    "prd_laptops_003",
+    "prd_air_conditioners_001",
+    "prd_air_conditioners_002",
+    "prd_air_conditioners_003",
+    "prd_televisions_001",
+    "prd_televisions_002",
+    "prd_televisions_003",
+    "prd_headphones_001",
+    "prd_headphones_002",
+    "prd_headphones_003"
+  ],
+  "validation": {
+    "status": "passed",
+    "error_count": 0
+  },
+  "checksums": {
+    "products_sha256": "0c750dcc28bfe6b58ccd0597b5157039bbed6aead8ad717ea66b930ae01749ba",
+    "schema_sha256": "d91ba6be9e33c13e7e756f59e1c8e49897dfaf2cfdf0f64d39b2eb96de56b7b8"
+  }
+}
