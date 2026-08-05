@@ -29,6 +29,17 @@ class Settings(BaseSettings):
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "openai/gpt-5.4-mini"
 
+    customer_azure_openai_endpoint: str | None = None
+    customer_azure_openai_api_key: SecretStr | None = None
+    azure_embedding_model: str = "text-embedding-3-large"
+
+    qdrant_url: str | None = None
+    qdrant_api_key: SecretStr | None = None
+    qdrant_collection_name: str = Field(
+        default="sales_bot_products_v1",
+        pattern=r"^[a-zA-Z0-9_-]{1,255}$",
+    )
+
     product_catalog_path: Path = PROJECT_ROOT / "data" / "catalog" / "products.jsonl"
     mode_name: str = "ecommerce_assistant_v1"
     reasoning_effort: str = "low"
@@ -62,6 +73,31 @@ class Settings(BaseSettings):
         if not value.startswith("https://"):
             raise ValueError("OPENROUTER_BASE_URL HTTPS olmalıdır")
         return value
+
+    @field_validator("customer_azure_openai_endpoint", "qdrant_url")
+    @classmethod
+    def normalize_optional_https_url(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().rstrip("/")
+        if not normalized.startswith("https://"):
+            raise ValueError("Azure və Qdrant URL-ləri HTTPS olmalıdır")
+        return normalized
+
+    @field_validator("customer_azure_openai_api_key", "qdrant_api_key")
+    @classmethod
+    def normalize_optional_secret(cls, value: SecretStr | None) -> SecretStr | None:
+        if value is None:
+            return None
+        return SecretStr(value.get_secret_value().strip())
+
+    @field_validator("azure_embedding_model")
+    @classmethod
+    def validate_embedding_model(cls, value: str) -> str:
+        normalized = value.strip()
+        if not normalized:
+            raise ValueError("AZURE_EMBEDDING_MODEL boş ola bilməz")
+        return normalized
 
     @field_validator("reasoning_effort")
     @classmethod
