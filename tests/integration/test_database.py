@@ -29,7 +29,11 @@ async def test_migration_and_session_persistence() -> None:
         check=True,
         env=env,
     )
-    settings = Settings(database_url=test_url, openrouter_api_key="test-key")
+    settings = Settings(
+        database_url=test_url,
+        customer_azure_openai_endpoint="https://test-resource.openai.azure.com",
+        customer_azure_openai_api_key="test-key",
+    )
     database = Database(test_url)
     try:
         assert await database.is_ready() is True

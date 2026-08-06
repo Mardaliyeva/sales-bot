@@ -25,12 +25,9 @@ class Settings(BaseSettings):
     database_url: str
     test_database_url: str | None = None
 
-    openrouter_api_key: SecretStr
-    openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    openrouter_model: str = "openai/gpt-5.4-mini"
-
-    customer_azure_openai_endpoint: str | None = None
-    customer_azure_openai_api_key: SecretStr | None = None
+    customer_azure_openai_endpoint: str
+    customer_azure_openai_api_key: SecretStr
+    azure_text_model: str = "gpt-5.4-mini"
     azure_embedding_model: str = "text-embedding-3-large"
 
     qdrant_url: str | None = None
@@ -58,45 +55,47 @@ class Settings(BaseSettings):
             raise ValueError("PostgreSQL URL postgresql+psycopg:// ilə başlamalıdır")
         return value
 
-    @field_validator("openrouter_api_key")
+    @field_validator("customer_azure_openai_api_key")
     @classmethod
-    def validate_openrouter_key(cls, value: SecretStr) -> SecretStr:
+    def validate_azure_key(cls, value: SecretStr) -> SecretStr:
         secret = value.get_secret_value().strip()
-        if not secret or secret == "CHANGE_ME":
-            raise ValueError("OPENROUTER_API_KEY konfiqurasiya edilməyib")
+        if not secret or secret in {"YOUR_AZURE_API_KEY", "CHANGE_ME"}:
+            raise ValueError("CUSTOMER_AZURE_OPENAI_API_KEY konfiqurasiya edilməyib")
         return SecretStr(secret)
 
-    @field_validator("openrouter_base_url")
+    @field_validator("customer_azure_openai_endpoint")
     @classmethod
-    def normalize_base_url(cls, value: str) -> str:
-        value = value.rstrip("/")
-        if not value.startswith("https://"):
-            raise ValueError("OPENROUTER_BASE_URL HTTPS olmalıdır")
-        return value
+    def normalize_azure_endpoint(cls, value: str) -> str:
+        normalized = value.strip().rstrip("/")
+        if normalized == "YOUR_AZURE_ENDPOINT":
+            raise ValueError("CUSTOMER_AZURE_OPENAI_ENDPOINT konfiqurasiya edilməyib")
+        if not normalized.startswith("https://"):
+            raise ValueError("Azure endpoint HTTPS olmalıdır")
+        return normalized
 
-    @field_validator("customer_azure_openai_endpoint", "qdrant_url")
+    @field_validator("qdrant_url")
     @classmethod
-    def normalize_optional_https_url(cls, value: str | None) -> str | None:
+    def normalize_qdrant_url(cls, value: str | None) -> str | None:
         if value is None:
             return None
         normalized = value.strip().rstrip("/")
         if not normalized.startswith("https://"):
-            raise ValueError("Azure və Qdrant URL-ləri HTTPS olmalıdır")
+            raise ValueError("Qdrant URL HTTPS olmalıdır")
         return normalized
 
-    @field_validator("customer_azure_openai_api_key", "qdrant_api_key")
+    @field_validator("qdrant_api_key")
     @classmethod
     def normalize_optional_secret(cls, value: SecretStr | None) -> SecretStr | None:
         if value is None:
             return None
         return SecretStr(value.get_secret_value().strip())
 
-    @field_validator("azure_embedding_model")
+    @field_validator("azure_text_model", "azure_embedding_model")
     @classmethod
-    def validate_embedding_model(cls, value: str) -> str:
+    def validate_azure_deployment(cls, value: str) -> str:
         normalized = value.strip()
         if not normalized:
-            raise ValueError("AZURE_EMBEDDING_MODEL boş ola bilməz")
+            raise ValueError("Azure deployment adı boş ola bilməz")
         return normalized
 
     @field_validator("reasoning_effort")

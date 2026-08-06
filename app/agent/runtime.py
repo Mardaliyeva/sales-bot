@@ -11,7 +11,7 @@ from app.agent.types import AgentResult, AgentRuntimeError
 from app.config import Settings
 from app.db.models import AgentRun, ChatSession
 from app.db.repositories import ConversationRepository
-from app.llm.openrouter_client import OpenRouterClient, ProviderError, ProviderTimeoutError
+from app.llm.azure_client import AzureChatClient, ProviderError, ProviderTimeoutError
 from app.tools.registry import ToolArgumentsError, ToolRegistry, UnknownToolError
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,7 @@ class AgentRuntime:
         *,
         settings: Settings,
         repository: ConversationRepository,
-        llm: OpenRouterClient,
+        llm: AzureChatClient,
         tools: ToolRegistry,
     ) -> None:
         self.settings = settings

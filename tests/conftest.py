@@ -16,11 +16,11 @@ def catalog_path() -> Path:
 def settings(catalog_path: Path) -> Settings:
     return Settings(
         database_url="postgresql+psycopg://assistant_app:test@127.0.0.1:5432/ecommerce_assistant",
-        openrouter_api_key="test-openrouter-key",
+        customer_azure_openai_endpoint="https://test-resource.openai.azure.com",
+        customer_azure_openai_api_key="test-azure-key",
+        azure_text_model="gpt-5.4-mini",
         product_catalog_path=catalog_path,
         llm_timeout_seconds=1,
-        customer_azure_openai_endpoint=None,
-        customer_azure_openai_api_key=None,
         qdrant_url=None,
         qdrant_api_key=None,
     )

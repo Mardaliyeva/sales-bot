@@ -45,7 +45,7 @@ class ConversationRepository:
         item = ChatSession(
             status="active",
             mode_name=self.settings.mode_name,
-            model=self.settings.openrouter_model,
+            model=self.settings.azure_text_model,
             reasoning_effort=self.settings.reasoning_effort,
             max_tool_count=self.settings.max_tool_count,
             context={"last_product_ids": [], "focused_product_id": None},

@@ -6,23 +6,27 @@ from pydantic import ValidationError
 from app.config import Settings
 
 
-def test_placeholder_api_key_is_rejected() -> None:
+def test_placeholder_azure_configuration_is_rejected() -> None:
     with pytest.raises(ValidationError):
         Settings(
             database_url="postgresql+psycopg://user:pass@127.0.0.1/db",
-            openrouter_api_key="CHANGE_ME",
+            customer_azure_openai_endpoint="YOUR_AZURE_ENDPOINT",
+            customer_azure_openai_api_key="YOUR_AZURE_API_KEY",
         )
 
 
 def test_non_postgres_database_url_is_rejected() -> None:
     with pytest.raises(ValidationError):
-        Settings(database_url="sqlite:///test.db", openrouter_api_key="test")
+        Settings(
+            database_url="sqlite:///test.db",
+            customer_azure_openai_endpoint="https://example.openai.azure.com",
+            customer_azure_openai_api_key="test",
+        )
 
 
 def test_optional_vector_services_are_normalized() -> None:
     settings = Settings(
         database_url="postgresql+psycopg://user:pass@127.0.0.1/db",
-        openrouter_api_key="test",
         customer_azure_openai_endpoint="https://example.openai.azure.com/",
         customer_azure_openai_api_key=" azure-secret ",
         qdrant_url="https://example.cloud.qdrant.io/",
@@ -41,6 +45,16 @@ def test_vector_service_urls_must_use_https() -> None:
     with pytest.raises(ValidationError):
         Settings(
             database_url="postgresql+psycopg://user:pass@127.0.0.1/db",
-            openrouter_api_key="test",
+            customer_azure_openai_endpoint="https://example.openai.azure.com",
+            customer_azure_openai_api_key="test",
             qdrant_url="http://example.local",
+        )
+
+
+def test_azure_endpoint_must_use_https() -> None:
+    with pytest.raises(ValidationError):
+        Settings(
+            database_url="postgresql+psycopg://user:pass@127.0.0.1/db",
+            customer_azure_openai_endpoint="http://example.openai.azure.com",
+            customer_azure_openai_api_key="test",
         )

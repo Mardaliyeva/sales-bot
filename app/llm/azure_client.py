@@ -25,17 +25,20 @@ class ProviderTimeoutError(ProviderError):
     pass
 
 
-class OpenRouterClient:
-    def __init__(self, settings: Settings, transport: httpx.AsyncBaseTransport | None = None) -> None:
+class AzureChatClient:
+    def __init__(
+        self,
+        settings: Settings,
+        transport: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
         self.settings = settings
         self.client = httpx.AsyncClient(
-            base_url=settings.openrouter_base_url,
+            base_url=self._normalize_endpoint(settings.customer_azure_openai_endpoint),
             timeout=httpx.Timeout(settings.llm_timeout_seconds),
             transport=transport,
             headers={
-                "Authorization": f"Bearer {settings.openrouter_api_key.get_secret_value()}",
+                "api-key": settings.customer_azure_openai_api_key.get_secret_value(),
                 "Content-Type": "application/json",
-                "X-Title": "sales-bot",
             },
         )
 
@@ -49,25 +52,29 @@ class OpenRouterClient:
         model_round: int,
     ) -> ChatCompletionResponse:
         payload: dict[str, Any] = {
-            "model": self.settings.openrouter_model,
+            "model": self.settings.azure_text_model,
             "messages": messages,
-            "tool_choice": tool_choice,
-            "parallel_tool_calls": False,
-            "reasoning": {"effort": self.settings.reasoning_effort, "exclude": False},
-            "max_tokens": self.settings.max_output_tokens,
+            "max_completion_tokens": self.settings.max_output_tokens,
             "stream": False,
         }
         if tools:
             payload["tools"] = tools
+            payload["tool_choice"] = tool_choice
+            payload["parallel_tool_calls"] = False
+        else:
+            # Azure Chat Completions rejects reasoning_effort together with function tools
+            # for some GPT deployments. The final no-tool round can still use it safely.
+            payload["reasoning_effort"] = self.settings.reasoning_effort
 
         for attempt in range(2):
             logger.info(
                 "llm.request_started",
                 extra={
                     "request_id": request_id,
-                    "model": self.settings.openrouter_model,
+                    "model": self.settings.azure_text_model,
                     "model_round": model_round,
                     "attempt": attempt + 1,
+                    "provider": "azure_openai",
                 },
             )
             try:
@@ -75,11 +82,11 @@ class OpenRouterClient:
             except httpx.TimeoutException as exc:
                 if attempt == 0:
                     continue
-                raise ProviderTimeoutError("provider_timeout", "OpenRouter sorğusu vaxtı keçdi") from exc
+                raise ProviderTimeoutError("provider_timeout", "Azure sorğusu vaxtı keçdi") from exc
             except httpx.RequestError as exc:
                 if attempt == 0:
                     continue
-                raise ProviderError("provider_network_error", "OpenRouter şəbəkə xətası") from exc
+                raise ProviderError("provider_network_error", "Azure şəbəkə xətası") from exc
 
             if response.status_code in RETRYABLE_STATUSES and attempt == 0:
                 await self._wait_before_retry(response)
@@ -91,19 +98,20 @@ class OpenRouterClient:
                 parsed = ChatCompletionResponse.model_validate(response.json())
                 _ = parsed.first_choice
             except (ValueError, ValidationError) as exc:
-                raise ProviderError("provider_protocol_error", "OpenRouter cavabı etibarsızdır") from exc
+                raise ProviderError("provider_protocol_error", "Azure cavabı etibarsızdır") from exc
             logger.info(
                 "llm.request_completed",
                 extra={
                     "request_id": request_id,
-                    "model": parsed.model or self.settings.openrouter_model,
+                    "model": parsed.model or self.settings.azure_text_model,
                     "model_round": model_round,
                     "status": "success",
+                    "provider": "azure_openai",
                 },
             )
             return parsed
 
-        raise ProviderError("provider_unavailable", "OpenRouter müvəqqəti əlçatan deyil")
+        raise ProviderError("provider_unavailable", "Azure müvəqqəti əlçatan deyil")
 
     async def close(self) -> None:
         await self.client.aclose()
@@ -117,9 +125,18 @@ class OpenRouterClient:
         await asyncio.sleep(min(max(delay, 0.0), self.settings.llm_timeout_seconds))
 
     @staticmethod
+    def _normalize_endpoint(endpoint: str) -> str:
+        normalized = endpoint.strip().rstrip("/")
+        if normalized.endswith("/openai/v1"):
+            return normalized
+        if normalized.endswith("/openai"):
+            return f"{normalized}/v1"
+        return f"{normalized}/openai/v1"
+
+    @staticmethod
     def _map_http_error(status_code: int) -> ProviderError:
-        if status_code in {401, 402}:
-            error_type = "provider_auth_or_credit_error"
+        if status_code in {401, 403}:
+            error_type = "provider_auth_error"
         elif status_code == 400:
             error_type = "provider_bad_request"
         elif status_code == 429:
@@ -130,6 +147,6 @@ class OpenRouterClient:
             error_type = "provider_http_error"
         return ProviderError(
             error_type,
-            f"OpenRouter request statusu: {status_code}",
+            f"Azure request statusu: {status_code}",
             status_code=status_code,
         )

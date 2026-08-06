@@ -7,8 +7,9 @@ sessiya tarixçəsini PostgreSQL-də saxlayır.
 ## Tələblər
 
 - Python 3.14+
+- Node.js 20.9+
 - Supabase PostgreSQL Session Pooler və ya native PostgreSQL
-- OpenRouter API key
+- Mətn və embedding deployment-ləri olan Azure OpenAI resursu
 
 Docker tələb olunmur.
 
@@ -27,7 +28,9 @@ Copy-Item .env.example .env
 
 `.env.example` Supabase Shared Pooler-in session mode URL-ni ehtiva edir. `.env` daxilində
 `YOUR_PASSWORD_URL_ENCODED` hissəsini Supabase database parolunun URL-encoded forması ilə, həmçinin
-`OPENROUTER_API_KEY` dəyərini real açarla əvəz edin. `.env` Git-ə daxil edilmir.
+`CUSTOMER_AZURE_OPENAI_ENDPOINT` və `CUSTOMER_AZURE_OPENAI_API_KEY` dəyərlərini real Azure
+məlumatları ilə əvəz edin. `AZURE_TEXT_MODEL` və `AZURE_EMBEDDING_MODEL` sahələrinə Azure portalında
+yaratdığınız deployment adlarını yazın. `.env` Git-ə daxil edilmir.
 
 `TEST_DATABASE_URL` yalnız ayrıca test database olduqda açılmalıdır. Integration testlərini əsas
 Supabase `postgres` database-inə yönəltməyin. Supabase bağlantı rejimləri barədə rəsmi məlumat:
@@ -65,6 +68,29 @@ Content-Type: application/json
 
 Health endpoint-ləri: `GET /health/live` və `GET /health/ready`.
 
+## Frontend
+
+Backend `127.0.0.1:8000` ünvanında işləyərkən ayrıca PowerShell pəncərəsində frontend-i başladın:
+
+```powershell
+cd frontend
+Copy-Item .env.example .env.local
+npm.cmd install
+npm.cmd run dev
+```
+
+Brauzerdə `http://127.0.0.1:3000` ünvanını açın. Frontend `/backend/*` sorğularını
+`SALES_BOT_API_URL` ilə göstərilən FastAPI serverinə proxy edir. Söhbət tarixçəsi həmin brauzerin
+`localStorage` yaddaşında saxlanılır.
+
+Frontend yoxlamaları:
+
+```powershell
+npm.cmd test
+npm.cmd run lint
+npm.cmd run build
+```
+
 ## Yoxlama
 
 ```powershell
@@ -73,7 +99,7 @@ python -m pytest -m "not integration"
 python -m pytest -m integration
 ```
 
-Default testlər real OpenRouter, Azure və Qdrant çağırışı etmir. Integration testlər yalnız adı
+Default testlər real Azure və Qdrant çağırışı etmir. Integration testlər yalnız adı
 `_test` ilə bitən `TEST_DATABASE_URL` bazasında işləyir.
 
 ## Azure embedding və Qdrant baseline
@@ -102,7 +128,8 @@ python -m app.evals.product_semantic --update-baseline
 python -m app.evals.product_semantic
 ```
 
-Semantic runner OpenRouter və Supabase çağırmır.
+Semantic runner Azure mətn modelini və Supabase-i çağırmır; query embedding üçün Azure embedding
+deployment-indən istifadə edir.
 
 ## Hybrid product search runtime
 
@@ -134,9 +161,10 @@ yeniləyin:
 python -m app.evals.product_retrieval --update-baseline
 ```
 
-Bu eval OpenRouter, Supabase və şəbəkə çağırışı etmir; birbaşa lokal kataloq axtarışını ölçür.
+Bu eval Azure, Supabase və şəbəkə çağırışı etmir; birbaşa lokal kataloq axtarışını ölçür.
 
 ## Hazırkı sərhəd
 
-Sənəd RAG, operator handoff, frontend, streaming və auth hazırkı mərhələyə daxil deyil. Public chat və
+Sənəd RAG, operator handoff, streaming və auth hazırkı mərhələyə daxil deyil. Frontend məhsul
+cavablarını chat mətni kimi göstərir; məhsul kartları sonrakı mərhələyə saxlanılır. Public chat və
 `product_search` tool müqaviləsi dəyişmədən saxlanılır.

@@ -19,7 +19,7 @@ from app.config import Settings, get_settings
 from app.db.repositories import ConversationRepository
 from app.db.session import Database
 from app.embeddings.azure import DEFAULT_TEXT_VERSION, AzureEmbeddingClient
-from app.llm.openrouter_client import OpenRouterClient
+from app.llm.azure_client import AzureChatClient
 from app.logging_config import configure_logging
 from app.retrieval.hybrid import HybridProductSearch
 from app.tools.catalog import ProductCatalog
@@ -59,7 +59,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
         catalog.load()
         database = Database(settings.database_url)
         repository = ConversationRepository(database, settings)
-        llm = OpenRouterClient(settings)
+        llm = AzureChatClient(settings)
         embeddings: AzureEmbeddingClient | None = None
         vector_store: QdrantProductStore | None = None
         if _vector_runtime_configured(settings):
