@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -9,35 +10,108 @@ from qdrant_client import QdrantClient, models
 
 from app.config import Settings
 from app.tools.catalog import normalize_text
-from app.tools.schemas import ProductSearchArguments
+from app.tools.schemas import (
+    BOOLEAN_ATTRIBUTE_FIELDS,
+    DIMENSION_ATTRIBUTE_FIELDS,
+    LIST_ATTRIBUTE_FIELDS,
+    NUMERIC_ATTRIBUTE_FIELDS,
+    TEXT_ATTRIBUTE_FIELDS,
+    AttributeFilter,
+    ProductSearchArguments,
+)
 
-DEFAULT_COLLECTION_NAME = "sales_bot_products_v1"
+DEFAULT_COLLECTION_NAME = "sales_bot_products_semantic_v2"
 DEFAULT_VECTOR_SIZE = 3072
 DEFAULT_UPSERT_BATCH_SIZE = 32
 DEFAULT_QUERY_CANDIDATES = 20
+DEFAULT_SORT_CANDIDATES = 50
+
+INTEGER_ATTRIBUTE_FIELDS = frozenset(
+    {
+        "battery_hours",
+        "battery_mah",
+        "btu",
+        "coverage_max_m2",
+        "coverage_min_m2",
+        "hdmi_count",
+        "main_camera_mp",
+        "noise_level_db",
+        "ram_gb",
+        "refresh_rate_hz",
+        "screen_size_in",
+        "storage_gb",
+    }
+)
+FLOAT_ATTRIBUTE_FIELDS = NUMERIC_ATTRIBUTE_FIELDS - INTEGER_ATTRIBUTE_FIELDS
 
 PAYLOAD_INDEXES: dict[str, models.PayloadSchemaType] = {
     "product_id": models.PayloadSchemaType.KEYWORD,
+    "product_id_normalized": models.PayloadSchemaType.KEYWORD,
     "sku": models.PayloadSchemaType.KEYWORD,
+    "sku_normalized": models.PayloadSchemaType.KEYWORD,
+    "model_normalized": models.PayloadSchemaType.KEYWORD,
     "category_id": models.PayloadSchemaType.KEYWORD,
     "brand_normalized": models.PayloadSchemaType.KEYWORD,
     "model_family_normalized": models.PayloadSchemaType.KEYWORD,
     "color_code": models.PayloadSchemaType.KEYWORD,
     "currency": models.PayloadSchemaType.KEYWORD,
-    "connectivity_normalized": models.PayloadSchemaType.KEYWORD,
     "dataset_version": models.PayloadSchemaType.KEYWORD,
     "catalog_checksum": models.PayloadSchemaType.KEYWORD,
     "embedding_text_version": models.PayloadSchemaType.KEYWORD,
     "embedding_deployment": models.PayloadSchemaType.KEYWORD,
+    "attribute_fields": models.PayloadSchemaType.KEYWORD,
+    "list_price": models.PayloadSchemaType.FLOAT,
     "sale_price": models.PayloadSchemaType.FLOAT,
-    "screen_size_in": models.PayloadSchemaType.FLOAT,
-    "storage_gb": models.PayloadSchemaType.INTEGER,
-    "ram_gb": models.PayloadSchemaType.INTEGER,
-    "btu": models.PayloadSchemaType.INTEGER,
+    "rating": models.PayloadSchemaType.FLOAT,
+    "discount_percent": models.PayloadSchemaType.INTEGER,
+    "stock_quantity": models.PayloadSchemaType.INTEGER,
+    "warranty_months": models.PayloadSchemaType.INTEGER,
+    "review_count": models.PayloadSchemaType.INTEGER,
     "embedding_dimensions": models.PayloadSchemaType.INTEGER,
     "in_stock": models.PayloadSchemaType.BOOL,
-    "active_noise_cancellation": models.PayloadSchemaType.BOOL,
 }
+PAYLOAD_INDEXES.update(
+    {field: models.PayloadSchemaType.INTEGER for field in INTEGER_ATTRIBUTE_FIELDS}
+)
+PAYLOAD_INDEXES.update(
+    {field: models.PayloadSchemaType.FLOAT for field in FLOAT_ATTRIBUTE_FIELDS}
+)
+PAYLOAD_INDEXES.update(
+    {field: models.PayloadSchemaType.BOOL for field in BOOLEAN_ATTRIBUTE_FIELDS}
+)
+PAYLOAD_INDEXES.update(
+    {f"{field}_normalized": models.PayloadSchemaType.KEYWORD for field in TEXT_ATTRIBUTE_FIELDS}
+)
+PAYLOAD_INDEXES.update(
+    {f"{field}_normalized": models.PayloadSchemaType.KEYWORD for field in LIST_ATTRIBUTE_FIELDS}
+)
+PAYLOAD_INDEXES.update(
+    {f"{field}_normalized": models.PayloadSchemaType.KEYWORD for field in DIMENSION_ATTRIBUTE_FIELDS}
+)
+
+REQUIRED_PAYLOAD_FIELDS = frozenset(
+    {
+        "product_id",
+        "sku",
+        "model",
+        "name",
+        "description",
+        "category_id",
+        "brand",
+        "model_family",
+        "color_code",
+        "sale_price",
+        "currency",
+        "in_stock",
+        "rating",
+        "dataset_version",
+        "catalog_checksum",
+        "embedding_text_version",
+        "embedding_deployment",
+        "embedding_dimensions",
+        "attribute_fields",
+    }
+)
 
 
 class VectorStoreError(RuntimeError):
@@ -67,6 +141,7 @@ class CollectionStatus:
     embedding_deployments: tuple[str, ...]
     embedding_dimensions: tuple[int, ...]
     metadata_matches: bool
+    payload_fields_match: bool = True
 
     @property
     def ready(self) -> bool:
@@ -82,11 +157,32 @@ class CollectionStatus:
             and len(self.embedding_deployments) == 1
             and self.embedding_dimensions == (self.vector_size,)
             and self.metadata_matches
+            and self.payload_fields_match
         )
 
 
 def product_point_id(product_id: str) -> UUID:
     return uuid5(NAMESPACE_URL, f"sales-bot/product/{product_id}")
+
+
+def build_embedding_text(product: dict[str, Any]) -> str:
+    name = str(product.get("name", "")).strip()
+    description = str(product.get("description", "")).strip()
+    if not name or not description:
+        raise VectorStoreError("Embedding üçün məhsul adı və description boş ola bilməz")
+    return f"{name}\n{description}"
+
+
+def normalize_dimensions(value: object) -> str:
+    if isinstance(value, dict):
+        parts = [value.get("width"), value.get("height"), value.get("depth")]
+        if all(isinstance(part, int) and part > 0 for part in parts):
+            return "x".join(str(part) for part in parts)
+    if isinstance(value, str):
+        parts = re.findall(r"\d+", value)
+        if len(parts) == 3:
+            return "x".join(str(int(part)) for part in parts)
+    raise ValueError("Ölçü 'en x hündürlük x dərinlik' formatında olmalıdır")
 
 
 def build_product_payload(
@@ -97,46 +193,48 @@ def build_product_payload(
     embedding_deployment: str,
     embedding_dimensions: int,
 ) -> dict[str, Any]:
-    filters = product["filter_payload"]
-    attributes = product["attributes"]
+    attributes = dict(product["attributes"])
     payload: dict[str, Any] = {
         "product_id": product["product_id"],
+        "product_id_normalized": normalize_text(product["product_id"]),
         "sku": product["sku"],
+        "sku_normalized": normalize_text(product["sku"]),
         "name": product["name"],
+        "description": product["description"],
         "category_id": product["category"]["id"],
         "category_name": product["category"]["name"],
         "brand": product["brand"],
         "brand_normalized": normalize_text(product["brand"]),
         "model": product["model"],
+        "model_normalized": normalize_text(product["model"]),
         "model_family": product["model_family"],
         "model_family_normalized": normalize_text(product["model_family"]),
         "color_code": product["color"]["code"],
+        "color_name": product["color"]["name"],
+        "list_price": float(product["price"]["list"]),
         "sale_price": float(product["price"]["sale"]),
+        "discount_percent": int(product["price"]["discount_percent"]),
         "currency": product["price"]["currency"],
-        "in_stock": bool(filters["in_stock"]),
+        "in_stock": product["stock"]["status"] == "in_stock",
+        "stock_quantity": int(product["stock"]["quantity"]),
+        "warranty_months": int(product["warranty_months"]),
+        "rating": float(product["rating"]),
+        "review_count": int(product["review_count"]),
+        "attribute_fields": sorted(attributes),
         "dataset_version": product["dataset_version"],
         "catalog_checksum": catalog_checksum,
         "embedding_text_version": embedding_text_version,
         "embedding_deployment": embedding_deployment,
         "embedding_dimensions": embedding_dimensions,
     }
-    optional_values = {
-        "storage_gb": filters.get("storage_gb", attributes.get("storage_gb")),
-        "ram_gb": filters.get("ram_gb", attributes.get("ram_gb")),
-        "btu": filters.get("btu", attributes.get("btu")),
-        "screen_size_in": filters.get("screen_size_in", attributes.get("screen_size_in")),
-        "active_noise_cancellation": filters.get(
-            "active_noise_cancellation",
-            attributes.get("active_noise_cancellation"),
-        ),
-    }
-    connectivity = filters.get("connectivity", attributes.get("connectivity"))
-    if connectivity is not None:
-        payload["connectivity"] = str(connectivity)
-        payload["connectivity_normalized"] = normalize_text(str(connectivity))
-    for key, value in optional_values.items():
-        if value is not None:
-            payload[key] = value
+    for field, value in attributes.items():
+        payload[field] = value
+        if field in TEXT_ATTRIBUTE_FIELDS and isinstance(value, str):
+            payload[f"{field}_normalized"] = normalize_text(value)
+        elif field in LIST_ATTRIBUTE_FIELDS and isinstance(value, list):
+            payload[f"{field}_normalized"] = [normalize_text(str(item)) for item in value]
+        elif field in DIMENSION_ATTRIBUTE_FIELDS:
+            payload[f"{field}_normalized"] = normalize_dimensions(value)
     return payload
 
 
@@ -227,10 +325,34 @@ class QdrantProductStore:
     def count_candidates(self, args: ProductSearchArguments) -> int:
         result = self.client.count(
             collection_name=self.collection_name,
-            count_filter=self.build_filter(args),
+            count_filter=self.build_filter(args, include_identifiers=False),
             exact=True,
         )
         return result.count
+
+    def exact_candidates(
+        self,
+        args: ProductSearchArguments,
+        *,
+        include_structured_filters: bool,
+    ) -> list[VectorSearchHit]:
+        if not args.has_exact_identifier:
+            return []
+        query_filter = self.build_filter(
+            args,
+            include_identifiers=True,
+            include_structured_filters=include_structured_filters,
+        )
+        records, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=query_filter,
+            limit=50,
+            with_payload=True,
+            with_vectors=False,
+        )
+        hits = [self._record_to_hit(record, score=1.0) for record in records]
+        hits.sort(key=lambda hit: hit.product_id)
+        return hits
 
     def search(
         self,
@@ -253,18 +375,12 @@ class QdrantProductStore:
         response = self.client.query_points(
             collection_name=self.collection_name,
             query=vector,
-            query_filter=self.build_filter(args),
+            query_filter=self.build_filter(args, include_identifiers=False),
             limit=max(candidate_limit, args.limit),
             with_payload=True,
             with_vectors=False,
         )
-        hits: list[VectorSearchHit] = []
-        for point in response.points:
-            payload = dict(point.payload or {})
-            product_id = payload.get("product_id")
-            if not isinstance(product_id, str):
-                raise VectorStoreError("Qdrant nəticəsində product_id yoxdur")
-            hits.append(VectorSearchHit(product_id=product_id, score=float(point.score), payload=payload))
+        hits = [self._record_to_hit(point, score=float(point.score)) for point in response.points]
         hits.sort(key=lambda hit: (-hit.score, hit.product_id))
         return hits[:candidate_limit]
 
@@ -295,9 +411,10 @@ class QdrantProductStore:
                 embedding_deployments=(),
                 embedding_dimensions=(),
                 metadata_matches=False,
+                payload_fields_match=False,
             )
         vector_size, distance = self._collection_vector_config()
-        payloads = self._all_metadata_payloads()
+        payloads = self._all_payloads()
         actual_ids = {
             payload["product_id"]
             for payload in payloads
@@ -324,6 +441,7 @@ class QdrantProductStore:
             expected_embedding_deployment is None or deployments == (expected_embedding_deployment,),
             expected_embedding_dimensions is None or dimensions == (expected_embedding_dimensions,),
         )
+        payload_fields_match = all(self._payload_fields_valid(payload) for payload in payloads)
         return CollectionStatus(
             exists=True,
             collection_name=self.collection_name,
@@ -339,10 +457,37 @@ class QdrantProductStore:
             embedding_deployments=deployments,
             embedding_dimensions=dimensions,
             metadata_matches=all(expected_checks),
+            payload_fields_match=payload_fields_match,
         )
 
     @staticmethod
-    def build_filter(args: ProductSearchArguments) -> models.Filter | None:
+    def build_filter(
+        args: ProductSearchArguments,
+        *,
+        include_identifiers: bool = False,
+        include_structured_filters: bool = True,
+    ) -> models.Filter | None:
+        conditions: list[models.Condition] = []
+        if include_identifiers:
+            identifier_fields = {
+                "product_id_normalized": args.product_id,
+                "sku_normalized": args.sku,
+                "model_normalized": args.model,
+            }
+            for key, value in identifier_fields.items():
+                if value is not None:
+                    conditions.append(
+                        models.FieldCondition(
+                            key=key,
+                            match=models.MatchValue(value=normalize_text(value)),
+                        )
+                    )
+        if include_structured_filters:
+            conditions.extend(QdrantProductStore._structured_conditions(args))
+        return models.Filter(must=conditions) if conditions else None
+
+    @staticmethod
+    def _structured_conditions(args: ProductSearchArguments) -> list[models.Condition]:
         conditions: list[models.Condition] = []
         exact_fields: dict[str, str | bool | None] = {
             "category_id": args.category_id,
@@ -383,7 +528,49 @@ class QdrantProductStore:
                     range=models.Range(gte=args.min_price, lte=args.max_price),
                 )
             )
-        return models.Filter(must=conditions) if conditions else None
+        conditions.extend(
+            QdrantProductStore._attribute_condition(attribute_filter)
+            for attribute_filter in args.attribute_filters
+        )
+        return conditions
+
+    @staticmethod
+    def _attribute_condition(attribute_filter: AttributeFilter) -> models.FieldCondition:
+        field = attribute_filter.field
+        operator = attribute_filter.operator
+        value = attribute_filter.value
+        if field in NUMERIC_ATTRIBUTE_FIELDS:
+            numeric_value = float(value) if isinstance(value, (int, float)) else 0.0
+            if operator == "eq":
+                value_range = models.Range(gte=numeric_value, lte=numeric_value)
+            elif operator == "gte":
+                value_range = models.Range(gte=numeric_value)
+            else:
+                value_range = models.Range(lte=numeric_value)
+            return models.FieldCondition(key=field, range=value_range)
+        if field in BOOLEAN_ATTRIBUTE_FIELDS:
+            return models.FieldCondition(key=field, match=models.MatchValue(value=bool(value)))
+        if field in TEXT_ATTRIBUTE_FIELDS:
+            key = f"{field}_normalized"
+            if operator == "in" and isinstance(value, list):
+                normalized = [normalize_text(str(item)) for item in value]
+                return models.FieldCondition(key=key, match=models.MatchAny(any=normalized))
+            return models.FieldCondition(
+                key=key,
+                match=models.MatchValue(value=normalize_text(str(value))),
+            )
+        if field in LIST_ATTRIBUTE_FIELDS:
+            normalized = [normalize_text(str(item)) for item in value] if isinstance(value, list) else []
+            return models.FieldCondition(
+                key=f"{field}_normalized",
+                match=models.MatchAny(any=normalized),
+            )
+        if field in DIMENSION_ATTRIBUTE_FIELDS:
+            return models.FieldCondition(
+                key=f"{field}_normalized",
+                match=models.MatchValue(value=normalize_dimensions(value)),
+            )
+        raise ValueError(f"Dəstəklənməyən attribute filter: {field}")
 
     def _validate_collection(self) -> None:
         size, distance = self._collection_vector_config()
@@ -411,7 +598,7 @@ class QdrantProductStore:
                     wait=True,
                 )
 
-    def _all_metadata_payloads(self) -> list[dict[str, Any]]:
+    def _all_payloads(self) -> list[dict[str, Any]]:
         payloads: list[dict[str, Any]] = []
         offset: int | str | UUID | None = None
         while True:
@@ -419,14 +606,7 @@ class QdrantProductStore:
                 collection_name=self.collection_name,
                 limit=256,
                 offset=offset,
-                with_payload=[
-                    "product_id",
-                    "dataset_version",
-                    "catalog_checksum",
-                    "embedding_text_version",
-                    "embedding_deployment",
-                    "embedding_dimensions",
-                ],
+                with_payload=True,
                 with_vectors=False,
             )
             payloads.extend(dict(record.payload or {}) for record in records)
@@ -434,7 +614,30 @@ class QdrantProductStore:
                 return payloads
 
     @staticmethod
+    def _payload_fields_valid(payload: dict[str, Any]) -> bool:
+        if not REQUIRED_PAYLOAD_FIELDS.issubset(payload):
+            return False
+        attribute_fields = payload.get("attribute_fields")
+        return isinstance(attribute_fields, list) and all(
+            isinstance(field, str) and field in payload for field in attribute_fields
+        )
+
+    @staticmethod
     def _unique_strings(payloads: Sequence[dict[str, Any]], key: str) -> tuple[str, ...]:
         return tuple(
-            sorted({value for payload in payloads if isinstance((value := payload.get(key)), str)})
+            sorted(
+                {
+                    value
+                    for payload in payloads
+                    if isinstance((value := payload.get(key)), str)
+                }
+            )
         )
+
+    @staticmethod
+    def _record_to_hit(record: Any, *, score: float) -> VectorSearchHit:
+        payload = dict(record.payload or {})
+        product_id = payload.get("product_id")
+        if not isinstance(product_id, str):
+            raise VectorStoreError("Qdrant nəticəsində product_id yoxdur")
+        return VectorSearchHit(product_id=product_id, score=score, payload=payload)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import uuid
 from types import SimpleNamespace
 from typing import Any
@@ -56,8 +57,44 @@ class FakeTools:
         return {
             "status": "success",
             "total": 1,
-            "items": [{"product_id": "prd_smartphones_001"}],
+            "applied_filters": {"max_price": 3000},
+            "items": [
+                {
+                    "product_id": "prd_smartphones_001",
+                    "sku": "SYN-PH-APL-001",
+                    "name": "Apple iPhone 16",
+                    "category_id": "smartphones",
+                    "sale_price": 2499.99,
+                    "currency": "AZN",
+                    "stock_status": "in_stock",
+                    "warranty_months": 24,
+                    "rating": 4.8,
+                    "attributes": {
+                        "storage_gb": 128,
+                        "ram_gb": 8,
+                        "main_camera_mp": 48,
+                        "network": "5G",
+                        "operating_system": "iOS",
+                    },
+                }
+            ],
         }
+
+
+class AlternativeFakeTools(FakeTools):
+    async def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        result = await super().execute(name, arguments)
+        result.update(
+            {
+                "match_status": "alternatives",
+                "requested_label": "iPhone 19",
+                "strict_total": 0,
+                "total": 1,
+                "relaxed_fields": ["color_code"],
+            }
+        )
+        result["items"][0]["differences"] = ["Model fərqlidir: iPhone 16"]
+        return result
 
 
 def response(message: AssistantMessage, response_id: str) -> ChatCompletionResponse:
@@ -91,6 +128,22 @@ def make_run_and_session() -> tuple[AgentRun, ChatSession]:
     return run, session
 
 
+def test_not_found_status_uses_deterministic_answer() -> None:
+    answer = AgentRuntime._guard_product_answer(
+        "Uyğun məhsullar tapdım.",
+        {
+            "status": "success",
+            "match_status": "not_found",
+            "requested_label": "Future Phone 99",
+            "items": [],
+        },
+    )
+
+    assert answer == (
+        "Future Phone 99 kataloqda tapılmadı və etibarlı alternativ müəyyən edilmədi."
+    )
+
+
 @pytest.mark.asyncio
 async def test_direct_answer_uses_no_tool(settings: object) -> None:
     repository = FakeRepository()
@@ -104,8 +157,12 @@ async def test_direct_answer_uses_no_tool(settings: object) -> None:
     run, session = make_run_and_session()
     result = await runtime.run(run=run, session=session, user_message="Salam")
     assert result.used_tools == []
+    assert result.presentation is None
     assert repository.completed is not None
     assert len(llm.calls) == 1
+    trace = repository.completed["debug_trace"]
+    assert trace["diagnosis"]["code"] == "catalog_not_checked"
+    assert trace["diagnosis"]["data_status"] == "Yoxlanılmayıb"
 
 
 @pytest.mark.asyncio
@@ -149,6 +206,13 @@ async def test_tool_result_and_reasoning_are_returned_to_same_llm(settings: obje
     assert second_messages[-1]["role"] == "tool"
     assert repository.completed is not None
     assert repository.completed["last_product_ids"] == ["prd_smartphones_001"]
+    assert result.presentation is not None
+    assert result.presentation["recommended_product_id"] == "prd_smartphones_001"
+    assert result.presentation["items"][0]["budget_remaining"] == 500.01
+    trace_dump = json.dumps(repository.completed["debug_trace"])
+    assert repository.completed["debug_trace"]["diagnosis"]["code"] == "products_found"
+    assert "reasoning_details" not in trace_dump
+    assert "opaque" not in trace_dump
 
 
 @pytest.mark.asyncio
@@ -184,3 +248,38 @@ async def test_fourth_model_round_forces_final_answer_without_tools(settings: ob
     assert repository.completed is not None
     assert repository.completed["tool_count"] == 3
     assert repository.completed["model_rounds"] == 4
+
+
+@pytest.mark.asyncio
+async def test_alternative_status_deterministically_overrides_model_wording(settings: object) -> None:
+    repository = FakeRepository()
+    tool_call = ToolCall(
+        id="call_alt",
+        function=ToolFunctionCall(
+            name="product_search",
+            arguments='{"query":"iPhone 19","model":"iPhone 19","category_id":"smartphones"}',
+        ),
+    )
+    llm = FakeLlm(
+        [
+            response(AssistantMessage(tool_calls=[tool_call]), "r1"),
+            response(AssistantMessage(content="iPhone 19 tapdım."), "r2"),
+        ]
+    )
+    runtime = AgentRuntime(
+        settings=settings,
+        repository=repository,
+        llm=llm,
+        tools=AlternativeFakeTools(),  # type: ignore[arg-type]
+    )
+    run, session = make_run_and_session()
+
+    result = await runtime.run(run=run, session=session, user_message="iPhone 19 göstər")
+
+    assert result.answer.startswith("iPhone 19 kataloqda tapılmadı.")
+    assert "iPhone 19 tapdım" not in result.answer
+    assert result.presentation is not None
+    assert result.presentation["result_kind"] == "alternatives"
+    assert result.presentation["items"][0]["differences"] == ["Model fərqlidir: iPhone 16"]
+    assert repository.completed is not None
+    assert repository.completed["debug_trace"]["diagnosis"]["code"] == "alternatives_returned"

@@ -35,6 +35,13 @@ class HistoryMessage:
     content: str
 
 
+@dataclass(slots=True)
+class DebugRunSnapshot:
+    run: AgentRun
+    messages: list[ChatMessage]
+    final_message_id: uuid.UUID | None
+
+
 class ConversationRepository:
     def __init__(self, database: Database, settings: Settings) -> None:
         self.database = database
@@ -231,6 +238,7 @@ class ConversationRepository:
         reasoning_tokens: int,
         latency_ms: int,
         last_product_ids: list[str] | None,
+        debug_trace: dict[str, Any] | None,
     ) -> ChatMessage:
         now = datetime.now(UTC)
         async with self.database.session() as db, db.begin():
@@ -258,6 +266,7 @@ class ConversationRepository:
             run.output_tokens = output_tokens
             run.reasoning_tokens = reasoning_tokens
             run.latency_ms = latency_ms
+            run.debug_trace = debug_trace
             run.completed_at = now
             session.updated_at = now
             if last_product_ids is not None:
@@ -277,6 +286,7 @@ class ConversationRepository:
         model_rounds: int,
         tool_count: int,
         latency_ms: int,
+        debug_trace: dict[str, Any] | None,
     ) -> None:
         now = datetime.now(UTC)
         async with self.database.session() as db, db.begin():
@@ -286,10 +296,58 @@ class ConversationRepository:
             run.status = "failed"
             run.error_type = error_type[:80]
             run.error_message = error_message[:2000]
+            run.debug_trace = debug_trace
             run.model_rounds = model_rounds
             run.tool_count = tool_count
             run.latency_ms = latency_ms
             run.completed_at = now
+
+    async def get_debug_run(
+        self,
+        *,
+        session_id: uuid.UUID,
+        request_id: uuid.UUID | None = None,
+        message_id: uuid.UUID | None = None,
+    ) -> DebugRunSnapshot | None:
+        if (request_id is None) == (message_id is None):
+            raise ValueError("Dəqiq bir request_id və ya message_id verilməlidir")
+        async with self.database.session() as db:
+            query = select(AgentRun).where(AgentRun.session_id == session_id)
+            if request_id is not None:
+                query = query.where(AgentRun.request_id == request_id)
+            else:
+                query = query.join(ChatMessage, ChatMessage.run_id == AgentRun.id).where(
+                    ChatMessage.id == message_id
+                )
+            run = (await db.execute(query)).scalar_one_or_none()
+            if run is None:
+                return None
+            messages = list(
+                (
+                    await db.execute(
+                        select(ChatMessage)
+                        .where(ChatMessage.run_id == run.id)
+                        .order_by(ChatMessage.sequence_no)
+                    )
+                )
+                .scalars()
+                .all()
+            )
+        final_message_id = next(
+            (
+                message.id
+                for message in reversed(messages)
+                if message.role == "assistant"
+                and message.tool_calls is None
+                and message.content is not None
+            ),
+            None,
+        )
+        return DebugRunSnapshot(
+            run=run,
+            messages=messages,
+            final_message_id=final_message_id,
+        )
 
     @staticmethod
     async def _next_sequence(db: Any, session_id: uuid.UUID) -> int:

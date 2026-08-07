@@ -85,29 +85,29 @@
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_smartphones_001",
-        "prd_smartphones_002",
         "prd_smartphones_003",
-        "prd_smartphones_004",
-        "prd_smartphones_005"
+        "prd_smartphones_002",
+        "prd_smartphones_006",
+        "prd_smartphones_007"
       ],
       "missed_product_ids": [
-        "prd_smartphones_006",
-        "prd_smartphones_007",
+        "prd_smartphones_004",
+        "prd_smartphones_005",
         "prd_smartphones_008",
         "prd_smartphones_009",
         "prd_smartphones_010"
       ],
       "outcome": "passed",
       "precision_at_5": 1.0,
-      "query": "Apple SYN-PH-APL-001 modeli",
+      "query": "Apple iPhone 17 Pro modeli",
       "query_id": "gq_002",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
         "prd_smartphones_001",
-        "prd_smartphones_002",
         "prd_smartphones_003",
-        "prd_smartphones_004",
-        "prd_smartphones_005"
+        "prd_smartphones_002",
+        "prd_smartphones_006",
+        "prd_smartphones_007"
       ],
       "returned_total": 10,
       "suite": "canonical",
@@ -314,27 +314,27 @@
         "prd_tablets_001",
         "prd_tablets_002",
         "prd_tablets_003",
-        "prd_tablets_004",
-        "prd_tablets_005"
+        "prd_tablets_008",
+        "prd_tablets_010"
       ],
       "missed_product_ids": [
+        "prd_tablets_004",
+        "prd_tablets_005",
         "prd_tablets_006",
         "prd_tablets_007",
-        "prd_tablets_008",
-        "prd_tablets_009",
-        "prd_tablets_010"
+        "prd_tablets_009"
       ],
       "outcome": "passed",
       "precision_at_5": 1.0,
-      "query": "Apple SYN-TB-APL-001 modeli",
+      "query": "Apple iPad Pro 13-inch (M4) modeli",
       "query_id": "gq_007",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
         "prd_tablets_001",
         "prd_tablets_002",
         "prd_tablets_003",
-        "prd_tablets_004",
-        "prd_tablets_005"
+        "prd_tablets_008",
+        "prd_tablets_010"
       ],
       "returned_total": 10,
       "suite": "canonical",
@@ -512,7 +512,7 @@
       ],
       "outcome": "passed",
       "precision_at_5": 1.0,
-      "query": "Lenovo SYN-LP-LEN-001 modeli",
+      "query": "Lenovo IdeaPad Pro 5i Gen 10 modeli",
       "query_id": "gq_012",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
@@ -678,18 +678,18 @@
         "prd_air_conditioners_002",
         "prd_air_conditioners_003",
         "prd_air_conditioners_004",
-        "prd_air_conditioners_005"
+        "prd_air_conditioners_007"
       ],
       "missed_product_ids": [
+        "prd_air_conditioners_005",
         "prd_air_conditioners_006",
-        "prd_air_conditioners_007",
         "prd_air_conditioners_008",
         "prd_air_conditioners_009",
         "prd_air_conditioners_010"
       ],
       "outcome": "passed",
       "precision_at_5": 1.0,
-      "query": "LG SYN-AC-LGE-001 modeli",
+      "query": "LG DUALCOOL AI Air 9K modeli",
       "query_id": "gq_017",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
@@ -697,7 +697,7 @@
         "prd_air_conditioners_002",
         "prd_air_conditioners_003",
         "prd_air_conditioners_004",
-        "prd_air_conditioners_005"
+        "prd_air_conditioners_007"
       ],
       "returned_total": 10,
       "suite": "canonical",
@@ -812,7 +812,7 @@
       "missed_product_ids": [],
       "outcome": "passed",
       "precision_at_5": 1.0,
-      "query": "gümüşü Samsung Vision",
+      "query": "gümüşü Samsung TV",
       "query_id": "gq_021",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
@@ -849,18 +849,18 @@
         "prd_televisions_002",
         "prd_televisions_003",
         "prd_televisions_004",
-        "prd_televisions_005"
+        "prd_televisions_007"
       ],
       "missed_product_ids": [
+        "prd_televisions_005",
         "prd_televisions_006",
-        "prd_televisions_007",
         "prd_televisions_008",
         "prd_televisions_009",
         "prd_televisions_010"
       ],
       "outcome": "passed",
       "precision_at_5": 1.0,
-      "query": "Samsung SYN-TV-SMS-001 modeli",
+      "query": "Samsung QN900D Neo QLED 8K modeli",
       "query_id": "gq_022",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
@@ -868,7 +868,7 @@
         "prd_televisions_002",
         "prd_televisions_003",
         "prd_televisions_004",
-        "prd_televisions_005"
+        "prd_televisions_007"
       ],
       "returned_total": 10,
       "suite": "canonical",
@@ -1002,7 +1002,7 @@
       "missed_product_ids": [],
       "outcome": "passed",
       "precision_at_5": 1.0,
-      "query": "ağ Sony Sound",
+      "query": "ağ Sony Audio",
       "query_id": "gq_026",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
@@ -1037,28 +1037,28 @@
       "hit_product_ids": [
         "prd_headphones_001",
         "prd_headphones_002",
-        "prd_headphones_003",
-        "prd_headphones_004",
-        "prd_headphones_005"
-      ],
-      "missed_product_ids": [
-        "prd_headphones_006",
         "prd_headphones_007",
         "prd_headphones_008",
+        "prd_headphones_003"
+      ],
+      "missed_product_ids": [
+        "prd_headphones_004",
+        "prd_headphones_005",
+        "prd_headphones_006",
         "prd_headphones_009",
         "prd_headphones_010"
       ],
       "outcome": "passed",
       "precision_at_5": 1.0,
-      "query": "Sony SYN-HP-SNY-001 modeli",
+      "query": "Sony WH-1000XM6 modeli",
       "query_id": "gq_027",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
         "prd_headphones_001",
         "prd_headphones_002",
-        "prd_headphones_003",
-        "prd_headphones_004",
-        "prd_headphones_005"
+        "prd_headphones_007",
+        "prd_headphones_008",
+        "prd_headphones_003"
       ],
       "returned_total": 10,
       "suite": "canonical",
@@ -1932,7 +1932,7 @@
       "missed_product_ids": [],
       "outcome": "partial",
       "precision_at_5": 0.2,
-      "query": "Lenovo IdeaPad SYN-LP-LEN-001",
+      "query": "Lenovo IdeaPad Pro 5i Gen 10",
       "query_id": "challenge_021",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
@@ -2031,9 +2031,9 @@
       "expected_total": 1,
       "false_positive_ids": [
         "prd_headphones_002",
-        "prd_headphones_003",
-        "prd_headphones_004",
-        "prd_headphones_005"
+        "prd_headphones_007",
+        "prd_headphones_008",
+        "prd_headphones_003"
       ],
       "first_hit_rank": 1,
       "hit_at_5": true,
@@ -2043,15 +2043,15 @@
       "missed_product_ids": [],
       "outcome": "partial",
       "precision_at_5": 0.2,
-      "query": "Sony Sound SYN-HP-SNY-001",
+      "query": "Sony WH-1000XM6",
       "query_id": "challenge_024",
       "reciprocal_rank": 1.0,
       "returned_product_ids": [
         "prd_headphones_001",
         "prd_headphones_002",
-        "prd_headphones_003",
-        "prd_headphones_004",
-        "prd_headphones_005"
+        "prd_headphones_007",
+        "prd_headphones_008",
+        "prd_headphones_003"
       ],
       "returned_total": 50,
       "suite": "challenge",
@@ -2195,7 +2195,7 @@
   "dataset": {
     "dataset_version": "1.0.0",
     "product_count": 300,
-    "products_sha256": "0c750dcc28bfe6b58ccd0597b5157039bbed6aead8ad717ea66b930ae01749ba"
+    "products_sha256": "6828e695f485547310304ace3b3e7400d16ca2750d5e85e0848049b39e6172ec"
   },
   "schema_version": 1,
   "search_version": "lexical_v1",

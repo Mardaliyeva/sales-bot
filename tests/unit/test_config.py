@@ -39,6 +39,8 @@ def test_optional_vector_services_are_normalized() -> None:
     assert settings.qdrant_url == "https://example.cloud.qdrant.io"
     assert settings.qdrant_api_key is not None
     assert settings.qdrant_api_key.get_secret_value() == "qdrant-secret"
+    assert settings.qdrant_collection_name == "sales_bot_products_semantic_v2"
+    assert settings.alternative_min_score == 0.39
 
 
 def test_vector_service_urls_must_use_https() -> None:

@@ -52,4 +52,79 @@ describe("chatStorage", () => {
     expect(saveSessions([{ ...session(1), messages: [] }])).toEqual([]);
     expect(loadSessions()).toEqual([]);
   });
+
+  it("preserves optional debug identifiers without changing the storage version", () => {
+    const item = session(1);
+    item.messages[0] = {
+      ...item.messages[0],
+      role: "assistant",
+      requestId: "22222222-2222-4222-8222-222222222222",
+      usedTools: ["product_search"],
+    };
+
+    saveSessions([item]);
+
+    expect(loadSessions()[0].messages[0]).toMatchObject({
+      requestId: "22222222-2222-4222-8222-222222222222",
+      usedTools: ["product_search"],
+    });
+    expect(JSON.parse(window.localStorage.getItem(CHAT_STORAGE_KEY) || "{}").version).toBe(1);
+  });
+
+  it("preserves product card presentations without changing the storage version", () => {
+    const item = session(1);
+    item.messages[0] = {
+      ...item.messages[0],
+      role: "assistant",
+      presentation: {
+        type: "product_cards",
+        title: "2 uyğun məhsul tapdım",
+        total: 2,
+        shown_count: 1,
+        recommended_product_id: "prd_televisions_008",
+        items: [
+          {
+            product_id: "prd_televisions_008",
+            name: "Samsung Q70D QLED 4K",
+            sku: "SYN-TV-SMS-008",
+            price: 569.99,
+            currency: "AZN",
+            stock_status: "in_stock",
+            rating: 5,
+            warranty_months: 36,
+            highlights: ["QLED", "8K UHD"],
+            budget_remaining: 630.01,
+          },
+        ],
+      },
+    };
+
+    saveSessions([item]);
+
+    expect(loadSessions()[0].messages[0].presentation).toMatchObject({
+      type: "product_cards",
+      result_kind: "matches",
+      relaxed_fields: [],
+      recommended_product_id: "prd_televisions_008",
+      items: [{ sku: "SYN-TV-SMS-008", differences: [] }],
+    });
+    expect(JSON.parse(window.localStorage.getItem(CHAT_STORAGE_KEY) || "{}").version).toBe(1);
+  });
+
+  it("drops sessions containing invalid product card presentations", () => {
+    const item = session(1) as LocalChatSession & {
+      messages: Array<LocalChatSession["messages"][number] & { presentation?: unknown }>;
+    };
+    item.messages[0].presentation = {
+      type: "product_cards",
+      title: "Etibarsız",
+      items: [{ price: "569,99" }],
+    };
+    window.localStorage.setItem(
+      CHAT_STORAGE_KEY,
+      JSON.stringify({ version: 1, sessions: [item] }),
+    );
+
+    expect(loadSessions()).toEqual([]);
+  });
 });

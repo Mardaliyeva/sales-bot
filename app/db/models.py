@@ -57,6 +57,7 @@ class AgentRun(Base):
     latency_ms: Mapped[int | None] = mapped_column(Integer)
     error_type: Mapped[str | None] = mapped_column(String(80))
     error_message: Mapped[str | None] = mapped_column(Text)
+    debug_trace: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

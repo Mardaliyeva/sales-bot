@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     app_host: str = "127.0.0.1"
     app_port: int = Field(default=8000, ge=1, le=65535)
     log_level: str = "INFO"
+    debug_panel_enabled: bool = False
 
     database_url: str
     test_database_url: str | None = None
@@ -33,9 +34,10 @@ class Settings(BaseSettings):
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None
     qdrant_collection_name: str = Field(
-        default="sales_bot_products_v1",
+        default="sales_bot_products_semantic_v2",
         pattern=r"^[a-zA-Z0-9_-]{1,255}$",
     )
+    alternative_min_score: float = Field(default=0.39, ge=0, le=1)
 
     product_catalog_path: Path = PROJECT_ROOT / "data" / "catalog" / "products.jsonl"
     mode_name: str = "ecommerce_assistant_v1"

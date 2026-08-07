@@ -13,6 +13,7 @@ from app.agent.locks import SessionLockManager
 from app.agent.runtime import AgentRuntime
 from app.api.errors import ApiError, api_error_handler, validation_error_handler
 from app.api.routes_chat import router as chat_router
+from app.api.routes_debug import router as debug_router
 from app.api.routes_health import router as health_router
 from app.api.routes_sessions import router as sessions_router
 from app.config import Settings, get_settings
@@ -21,7 +22,7 @@ from app.db.session import Database
 from app.embeddings.azure import DEFAULT_TEXT_VERSION, AzureEmbeddingClient
 from app.llm.azure_client import AzureChatClient
 from app.logging_config import configure_logging
-from app.retrieval.hybrid import HybridProductSearch
+from app.retrieval.qdrant import QdrantProductSearch
 from app.tools.catalog import ProductCatalog
 from app.tools.product_search import ProductSearchTool
 from app.tools.registry import ToolRegistry
@@ -103,7 +104,12 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
                 embeddings = None
                 vector_store = None
 
-        product_search = HybridProductSearch(catalog, embeddings, vector_store)
+        product_search = QdrantProductSearch(
+            catalog,
+            embeddings,
+            vector_store,
+            alternative_min_score=settings.alternative_min_score,
+        )
         tools = ToolRegistry(ProductSearchTool(product_search), settings.tool_timeout_seconds)
 
         app.state.settings = settings
@@ -159,6 +165,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
     app.include_router(health_router)
     app.include_router(sessions_router)
     app.include_router(chat_router)
+    app.include_router(debug_router)
     return app
 
 

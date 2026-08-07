@@ -3,18 +3,30 @@
 import Image from "next/image";
 import {
   AlertCircle,
+  Bug,
+  CheckCircle2,
   ChevronDown,
+  CircleX,
   LoaderCircle,
   Menu,
   PanelLeftClose,
   PlusCircle,
   SendHorizontal,
+  ShieldCheck,
+  Star,
 } from "lucide-react";
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { SalesBotApiError, salesBotApi } from "@/lib/api";
 import { loadSessions, MAX_MESSAGES_PER_SESSION, saveSessions } from "@/lib/chatStorage";
-import type { ChatMessage, LocalChatSession, MessageState } from "@/lib/types";
+import type {
+  ChatMessage,
+  DebugTraceResponse,
+  LocalChatSession,
+  MessageState,
+  ProductCardsPresentation,
+} from "@/lib/types";
+import { DebugDrawer } from "@/components/DebugDrawer";
 
 const MAX_MESSAGE_LENGTH = 4000;
 const EMPTY_TITLE = "Yeni söhbət";
@@ -23,6 +35,10 @@ const SUGGESTIONS = [
   "Qara 128 GB iPhone göstər",
   "12000 BTU kondisioner varmı?",
 ];
+
+function debugPanelEnabled() {
+  return process.env.NEXT_PUBLIC_DEBUG_PANEL === "true";
+}
 
 function createId() {
   return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -66,14 +82,162 @@ function visibleError(error: unknown): { content: string; state: MessageState } 
   return { content: error.message || "Sorğu tamamlanmadı. Yenidən cəhd edin.", state: "error" };
 }
 
+const priceFormatter = new Intl.NumberFormat("az-AZ", {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+function formatPrice(value: number, currency: string) {
+  const formatted = priceFormatter
+    .formatToParts(value)
+    .map((part) => {
+      if (part.type === "decimal") return ",";
+      if (part.type === "group") return "\u00a0";
+      return part.value;
+    })
+    .join("");
+  return `${formatted} ${currency}`;
+}
+
+function InlineMarkdown({ text }: { text: string }) {
+  return (
+    <>
+      {text
+        .split(/(\*\*[^*\n]+\*\*)/g)
+        .filter(Boolean)
+        .map((part, index) =>
+          part.startsWith("**") && part.endsWith("**") ? (
+            <strong key={`${part}-${index}`}>{part.slice(2, -2)}</strong>
+          ) : (
+            <span key={`${part}-${index}`}>{part}</span>
+          ),
+        )}
+    </>
+  );
+}
+
+function splitProductAnswer(answer: string) {
+  const paragraphs = answer
+    .trim()
+    .split(/\n\s*\n/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean);
+  const lastParagraph = paragraphs.at(-1);
+  const hasFollowUp = paragraphs.length > 1 && Boolean(lastParagraph?.endsWith("?"));
+
+  return {
+    summary: (hasFollowUp ? paragraphs.slice(0, -1) : paragraphs).join("\n\n"),
+    followUp: hasFollowUp ? lastParagraph : undefined,
+  };
+}
+
+function ProductCardsMessage({
+  presentation,
+  answer,
+}: {
+  presentation: ProductCardsPresentation;
+  answer: string;
+}) {
+  const alternatives = presentation.result_kind === "alternatives";
+  const response = splitProductAnswer(answer);
+
+  return (
+    <section
+      className={`message-bubble product-results${alternatives ? " alternatives" : ""}`}
+      aria-label={alternatives ? "Yaxın məhsul alternativləri" : "Məhsul seçimləri"}
+    >
+      <div className="product-answer">
+        <InlineMarkdown text={response.summary} />
+      </div>
+
+      <ul className="product-card-list">
+        {presentation.items.map((item) => {
+          const recommended = item.product_id === presentation.recommended_product_id;
+          const inStock = item.stock_status === "in_stock";
+          return (
+            <li className={`product-card${recommended ? " recommended" : ""}`} key={item.product_id}>
+              <div className="product-card-heading">
+                <div className="product-card-title">
+                  {recommended && alternatives ? (
+                    <span className="product-recommended-label">
+                      <CheckCircle2 size={14} aria-hidden="true" />
+                      Ən yaxın alternativ
+                    </span>
+                  ) : null}
+                  <h3>{item.name}</h3>
+                  <code>{item.sku}</code>
+                </div>
+                <div className="product-card-price">
+                  <strong>{formatPrice(item.price, item.currency)}</strong>
+                  <span className={inStock ? "in-stock" : "out-of-stock"}>
+                    {inStock ? (
+                      <CheckCircle2 size={15} aria-hidden="true" />
+                    ) : (
+                      <CircleX size={15} aria-hidden="true" />
+                    )}
+                    {inStock ? "Stokda" : "Stokda yoxdur"}
+                  </span>
+                </div>
+              </div>
+
+              {item.highlights.length ? (
+                <ul className="product-highlights" aria-label={`${item.name} xüsusiyyətləri`}>
+                  {item.highlights.map((highlight) => (
+                    <li key={highlight}>{highlight}</li>
+                  ))}
+                </ul>
+              ) : null}
+
+              {alternatives && item.differences?.length ? (
+                <ul className="product-differences" aria-label={`${item.name} fərqləri`}>
+                  {item.differences.map((difference) => (
+                    <li key={difference}>{difference}</li>
+                  ))}
+                </ul>
+              ) : null}
+
+              <div className="product-card-meta">
+                <span>
+                  <Star size={15} aria-hidden="true" />
+                  <strong>{item.rating.toFixed(1)}</strong>
+                  <span className="product-meta-label">reytinq</span>
+                </span>
+                <span>
+                  <ShieldCheck size={15} aria-hidden="true" />
+                  <strong>{item.warranty_months} ay</strong>
+                  <span className="product-meta-label">zəmanət</span>
+                </span>
+                {item.budget_remaining !== undefined ? (
+                  <span className="budget-remaining">
+                    Büdcənizdə <strong>{formatPrice(item.budget_remaining, item.currency)}</strong> qalır
+                  </span>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+
+      {response.followUp ? (
+        <div className="product-follow-up">
+          <InlineMarkdown text={response.followUp} />
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function MessageBubble({
   message,
   onNewChat,
+  onDebug,
 }: {
   message: ChatMessage;
   onNewChat: () => void;
+  onDebug?: (message: ChatMessage) => void;
 }) {
   const assistant = message.role === "assistant";
+  const productPresentation = assistant && !message.state ? message.presentation : undefined;
   return (
     <article className={`message-row ${message.role}`} data-message-id={message.id}>
       {assistant ? (
@@ -81,12 +245,26 @@ function MessageBubble({
           <Image src="/kontakt-robot.png" alt="" width={64} height={64} />
         </span>
       ) : null}
-      <div className={`message-bubble${message.state ? ` ${message.state}` : ""}`}>
-        {message.state ? <AlertCircle size={17} aria-hidden="true" /> : null}
-        <div className="message-text">{message.content}</div>
-        {message.state === "session_expired" ? (
-          <button className="inline-new-chat" type="button" onClick={onNewChat}>
-            Yeni söhbət aç
+      <div className={`message-content${productPresentation ? " product-message-content" : ""}`}>
+        {productPresentation ? (
+          <ProductCardsMessage presentation={productPresentation} answer={message.content} />
+        ) : (
+          <div className={`message-bubble${message.state ? ` ${message.state}` : ""}`}>
+            {message.state ? <AlertCircle size={17} aria-hidden="true" /> : null}
+            <div className="message-text">
+              <InlineMarkdown text={message.content} />
+            </div>
+            {message.state === "session_expired" ? (
+              <button className="inline-new-chat" type="button" onClick={onNewChat}>
+                Yeni söhbət aç
+              </button>
+            ) : null}
+          </div>
+        )}
+        {assistant && !message.state && onDebug ? (
+          <button className="message-debug-button" type="button" onClick={() => onDebug(message)}>
+            <Bug size={14} aria-hidden="true" />
+            Debug
           </button>
         ) : null}
       </div>
@@ -101,6 +279,10 @@ export function ChatApp() {
   const [busy, setBusy] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [recentsOpen, setRecentsOpen] = useState(true);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [debugLoading, setDebugLoading] = useState(false);
+  const [debugError, setDebugError] = useState<string | null>(null);
+  const [debugTrace, setDebugTrace] = useState<DebugTraceResponse | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -143,6 +325,29 @@ export function ChatApp() {
     requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
+  async function openDebug(message: ChatMessage) {
+    if (!activeSession.backendSessionId) return;
+    setDebugOpen(true);
+    setDebugLoading(true);
+    setDebugError(null);
+    setDebugTrace(null);
+    try {
+      const trace = await salesBotApi.getDebugTrace(
+        activeSession.backendSessionId,
+        message.requestId ? { requestId: message.requestId } : { messageId: message.id },
+      );
+      setDebugTrace(trace);
+    } catch (error) {
+      setDebugError(
+        error instanceof SalesBotApiError
+          ? error.message
+          : "Debug trace-i yükləmək mümkün olmadı.",
+      );
+    } finally {
+      setDebugLoading(false);
+    }
+  }
+
   async function submitMessage(value = draft) {
     const message = value.trim();
     if (!message || message.length > MAX_MESSAGE_LENGTH || busy) return;
@@ -178,6 +383,9 @@ export function ChatApp() {
         role: "assistant",
         content: response.answer,
         createdAt: new Date().toISOString(),
+        requestId: response.request_id,
+        usedTools: response.used_tools,
+        presentation: response.presentation,
       };
       workingSession = {
         ...workingSession,
@@ -193,6 +401,7 @@ export function ChatApp() {
         content: visible.content,
         createdAt: new Date().toISOString(),
         state: visible.state,
+        requestId: error instanceof SalesBotApiError ? error.requestId || undefined : undefined,
       };
       workingSession = {
         ...workingSession,
@@ -301,7 +510,16 @@ export function ChatApp() {
           ) : (
             <div className="message-list">
               {activeSession.messages.map((message) => (
-                <MessageBubble message={message} key={message.id} onNewChat={handleNewChat} />
+                <MessageBubble
+                  message={message}
+                  key={message.id}
+                  onNewChat={handleNewChat}
+                  onDebug={
+                    debugPanelEnabled() && activeSession.backendSessionId
+                      ? (selected) => void openDebug(selected)
+                      : undefined
+                  }
+                />
               ))}
               {busy ? (
                 <article className="message-row assistant loading" aria-label="Cavab hazırlanır">
@@ -357,6 +575,13 @@ export function ChatApp() {
           </div>
         </div>
       </main>
+      <DebugDrawer
+        open={debugOpen}
+        trace={debugTrace}
+        loading={debugLoading}
+        error={debugError}
+        onClose={() => setDebugOpen(false)}
+      />
     </div>
   );
 }

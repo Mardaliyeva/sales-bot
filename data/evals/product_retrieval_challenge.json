@@ -70,7 +70,7 @@
     "filters": {
       "category_id": "televisions",
       "brand": "Samsung",
-      "model_family": "Vision"
+      "model_family": "Samsung TV"
     },
     "expected_product_ids": [
       "prd_televisions_001",
@@ -86,7 +86,7 @@
     "filters": {
       "category_id": "headphones",
       "brand": "Sony",
-      "model_family": "Sound",
+      "model_family": "Sony Audio",
       "connectivity": "Bluetooth"
     },
     "expected_product_ids": [
@@ -170,7 +170,7 @@
     "filters": {
       "category_id": "televisions",
       "brand": "Samsung",
-      "model_family": "Vision"
+      "model_family": "Samsung TV"
     },
     "expected_product_ids": [
       "prd_televisions_001",
@@ -186,7 +186,7 @@
     "filters": {
       "category_id": "headphones",
       "brand": "Sony",
-      "model_family": "Sound",
+      "model_family": "Sony Audio",
       "connectivity": "Bluetooth"
     },
     "expected_product_ids": [
@@ -277,7 +277,7 @@
     "filters": {
       "category_id": "televisions",
       "brand": "Samsung",
-      "model_family": "Vision",
+      "model_family": "Samsung TV",
       "color_code": "silver",
       "screen_size_in": 55,
       "in_stock": true
@@ -295,7 +295,7 @@
     "filters": {
       "category_id": "headphones",
       "brand": "Sony",
-      "model_family": "Sound",
+      "model_family": "Sony Audio",
       "color_code": "white",
       "connectivity": "Bluetooth",
       "in_stock": true
@@ -311,7 +311,8 @@
     "type": "exact_identifier",
     "query": "SYN-PH-APL-001",
     "filters": {
-      "category_id": "smartphones"
+      "category_id": "smartphones",
+      "sku": "SYN-PH-APL-001"
     },
     "expected_product_ids": [
       "prd_smartphones_001"
@@ -323,7 +324,8 @@
     "type": "exact_identifier",
     "query": "prd_tablets_001",
     "filters": {
-      "category_id": "tablets"
+      "category_id": "tablets",
+      "product_id": "prd_tablets_001"
     },
     "expected_product_ids": [
       "prd_tablets_001"
@@ -333,9 +335,10 @@
   {
     "query_id": "challenge_021",
     "type": "exact_identifier",
-    "query": "Lenovo IdeaPad SYN-LP-LEN-001",
+    "query": "Lenovo IdeaPad Pro 5i Gen 10",
     "filters": {
-      "category_id": "laptops"
+      "category_id": "laptops",
+      "model": "IdeaPad Pro 5i Gen 10"
     },
     "expected_product_ids": [
       "prd_laptops_001"
@@ -347,7 +350,8 @@
     "type": "exact_identifier",
     "query": "SYN-AC-LGE-001",
     "filters": {
-      "category_id": "air_conditioners"
+      "category_id": "air_conditioners",
+      "sku": "SYN-AC-LGE-001"
     },
     "expected_product_ids": [
       "prd_air_conditioners_001"
@@ -359,7 +363,8 @@
     "type": "exact_identifier",
     "query": "prd_televisions_001",
     "filters": {
-      "category_id": "televisions"
+      "category_id": "televisions",
+      "product_id": "prd_televisions_001"
     },
     "expected_product_ids": [
       "prd_televisions_001"
@@ -369,9 +374,10 @@
   {
     "query_id": "challenge_024",
     "type": "exact_identifier",
-    "query": "Sony Sound SYN-HP-SNY-001",
+    "query": "Sony WH-1000XM6",
     "filters": {
-      "category_id": "headphones"
+      "category_id": "headphones",
+      "model": "WH-1000XM6"
     },
     "expected_product_ids": [
       "prd_headphones_001"
@@ -384,10 +390,12 @@
     "query": "mövcud olmayan marka smartfon",
     "filters": {
       "category_id": "smartphones",
-      "brand": "SyntheticMissingBrand"
+      "brand": "SyntheticMissingBrand",
+      "required_filter_fields": ["brand"]
     },
     "expected_product_ids": [],
-    "expect_empty": true
+    "expect_empty": true,
+    "expected_match_status": "not_found"
   },
   {
     "query_id": "challenge_026",
@@ -396,10 +404,12 @@
     "filters": {
       "category_id": "tablets",
       "brand": "Apple",
-      "btu": 12000
+      "btu": 12000,
+      "required_filter_fields": ["btu"]
     },
     "expected_product_ids": [],
-    "expect_empty": true
+    "expect_empty": true,
+    "expected_match_status": "not_found"
   },
   {
     "query_id": "challenge_027",
@@ -407,10 +417,12 @@
     "query": "Apple markalı noutbuk",
     "filters": {
       "category_id": "laptops",
-      "brand": "Apple"
+      "brand": "Apple",
+      "required_filter_fields": ["brand"]
     },
     "expected_product_ids": [],
-    "expect_empty": true
+    "expect_empty": true,
+    "expected_match_status": "not_found"
   },
   {
     "query_id": "challenge_028",
@@ -418,10 +430,12 @@
     "query": "mövcud olmayan kondisioner markası",
     "filters": {
       "category_id": "air_conditioners",
-      "brand": "SyntheticMissingBrand"
+      "brand": "SyntheticMissingBrand",
+      "required_filter_fields": ["brand"]
     },
     "expected_product_ids": [],
-    "expect_empty": true
+    "expect_empty": true,
+    "expected_match_status": "not_found"
   },
   {
     "query_id": "challenge_029",
@@ -430,10 +444,12 @@
     "filters": {
       "category_id": "televisions",
       "brand": "Samsung",
-      "storage_gb": 128
+      "storage_gb": 128,
+      "required_filter_fields": ["storage_gb"]
     },
     "expected_product_ids": [],
-    "expect_empty": true
+    "expect_empty": true,
+    "expected_match_status": "not_found"
   },
   {
     "query_id": "challenge_030",
@@ -442,9 +458,129 @@
     "filters": {
       "category_id": "headphones",
       "brand": "Sony",
-      "btu": 12000
+      "btu": 12000,
+      "required_filter_fields": ["btu"]
     },
     "expected_product_ids": [],
-    "expect_empty": true
+    "expect_empty": true,
+    "expected_match_status": "not_found"
+  },
+  {
+    "query_id": "challenge_031",
+    "type": "alternatives",
+    "query": "iPhone Future 99",
+    "filters": {
+      "category_id": "smartphones",
+      "model": "iPhone Future 99"
+    },
+    "expected_product_ids": [
+      "prd_smartphones_001", "prd_smartphones_002", "prd_smartphones_003",
+      "prd_smartphones_004", "prd_smartphones_005", "prd_smartphones_006",
+      "prd_smartphones_007", "prd_smartphones_008", "prd_smartphones_009",
+      "prd_smartphones_010"
+    ],
+    "expect_empty": false,
+    "expected_match_status": "alternatives",
+    "max_returned_items": 3
+  },
+  {
+    "query_id": "challenge_032",
+    "type": "alternatives",
+    "query": "iPad Future 99",
+    "filters": {
+      "category_id": "tablets",
+      "model": "iPad Future 99"
+    },
+    "expected_product_ids": [
+      "prd_tablets_001", "prd_tablets_002", "prd_tablets_003", "prd_tablets_004",
+      "prd_tablets_005", "prd_tablets_006", "prd_tablets_007", "prd_tablets_008",
+      "prd_tablets_009", "prd_tablets_010"
+    ],
+    "expect_empty": false,
+    "expected_match_status": "alternatives",
+    "max_returned_items": 3
+  },
+  {
+    "query_id": "challenge_033",
+    "type": "alternatives",
+    "query": "IdeaPad Future 99",
+    "filters": {
+      "category_id": "laptops",
+      "model": "IdeaPad Future 99"
+    },
+    "expected_product_ids": [
+      "prd_laptops_001", "prd_laptops_002", "prd_laptops_003", "prd_laptops_004",
+      "prd_laptops_005", "prd_laptops_006", "prd_laptops_007", "prd_laptops_008",
+      "prd_laptops_009", "prd_laptops_010"
+    ],
+    "expect_empty": false,
+    "expected_match_status": "alternatives",
+    "max_returned_items": 3
+  },
+  {
+    "query_id": "challenge_034",
+    "type": "alternatives",
+    "query": "LG Inverter Split Future 99",
+    "filters": {
+      "category_id": "air_conditioners",
+      "model": "LG Inverter Split Future 99"
+    },
+    "expected_product_ids": [
+      "prd_air_conditioners_001", "prd_air_conditioners_002", "prd_air_conditioners_003",
+      "prd_air_conditioners_004", "prd_air_conditioners_005", "prd_air_conditioners_006",
+      "prd_air_conditioners_007", "prd_air_conditioners_008", "prd_air_conditioners_009",
+      "prd_air_conditioners_010"
+    ],
+    "expect_empty": false,
+    "expected_match_status": "alternatives",
+    "max_returned_items": 3
+  },
+  {
+    "query_id": "challenge_035",
+    "type": "alternatives",
+    "query": "Samsung TV Future 99",
+    "filters": {
+      "category_id": "televisions",
+      "model": "Samsung TV Future 99"
+    },
+    "expected_product_ids": [
+      "prd_televisions_001", "prd_televisions_002", "prd_televisions_003",
+      "prd_televisions_004", "prd_televisions_005", "prd_televisions_006",
+      "prd_televisions_007", "prd_televisions_008", "prd_televisions_009",
+      "prd_televisions_010"
+    ],
+    "expect_empty": false,
+    "expected_match_status": "alternatives",
+    "max_returned_items": 3
+  },
+  {
+    "query_id": "challenge_036",
+    "type": "alternatives",
+    "query": "Sony Audio Future 99",
+    "filters": {
+      "category_id": "headphones",
+      "model": "Sony Audio Future 99"
+    },
+    "expected_product_ids": [
+      "prd_headphones_001", "prd_headphones_002", "prd_headphones_003",
+      "prd_headphones_004", "prd_headphones_005", "prd_headphones_006",
+      "prd_headphones_007", "prd_headphones_008", "prd_headphones_009",
+      "prd_headphones_010"
+    ],
+    "expect_empty": false,
+    "expected_match_status": "alternatives",
+    "max_returned_items": 3
+  },
+  {
+    "query_id": "challenge_037",
+    "type": "alternative_negative",
+    "query": "ZXQ Blorb 999",
+    "filters": {
+      "category_id": "smartphones",
+      "model": "ZXQ Blorb 999"
+    },
+    "expected_product_ids": [],
+    "expect_empty": true,
+    "expected_match_status": "not_found"
   }
 ]

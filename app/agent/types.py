@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(slots=True)
@@ -9,6 +10,7 @@ class AgentResult:
     message_id: uuid.UUID
     answer: str
     used_tools: list[str]
+    presentation: dict[str, Any] | None = None
 
 
 class AgentRuntimeError(RuntimeError):

@@ -1,8 +1,8 @@
 # Sales Bot
 
 Azərbaycan dilində danışan e-commerce assistant üçün ilk vertical slice. Sistem smalltalk-a birbaşa
-cavab verir, məhsul sorğularında lokal 300 məhsullu katalog üzərində `product_search` çağırır və
-sessiya tarixçəsini PostgreSQL-də saxlayır.
+cavab verir, məhsul sorğularında Azure embedding və Qdrant üzərindən `product_search` çağırır, tam
+məhsul məlumatını 300 məhsullu JSON kataloqdan götürür və sessiya tarixçəsini PostgreSQL-də saxlayır.
 
 ## Tələblər
 
@@ -83,6 +83,13 @@ Brauzerdə `http://127.0.0.1:3000` ünvanını açın. Frontend `/backend/*` sor
 `SALES_BOT_API_URL` ilə göstərilən FastAPI serverinə proxy edir. Söhbət tarixçəsi həmin brauzerin
 `localStorage` yaddaşında saxlanılır.
 
+Development debug panelini aktivləşdirmək üçün backend `.env` faylına
+`DEBUG_PANEL_ENABLED=true`, frontend `.env.local` faylına isə
+`NEXT_PUBLIC_DEBUG_PANEL=true` əlavə edin. Panel yalnız `APP_ENV=development`
+olduqda işləyir. Hər assistant cavabındakı `Debug` düyməsi model mərhələlərini,
+tool arqumentlərini, Qdrant exact/semantic namizədlərini və JSON hydration nəticəsini göstərir;
+API açarları, system prompt və gizli reasoning göstərilmir.
+
 Frontend yoxlamaları:
 
 ```powershell
@@ -106,7 +113,9 @@ Default testlər real Azure və Qdrant çağırışı etmir. Integration testlə
 
 `.env` faylında `CUSTOMER_AZURE_OPENAI_ENDPOINT`, `CUSTOMER_AZURE_OPENAI_API_KEY`,
 `AZURE_EMBEDDING_MODEL`, `QDRANT_URL`, `QDRANT_API_KEY` və `QDRANT_COLLECTION_NAME` dəyərlərini
-konfiqurasiya edin. Real açarları `.env.example` faylına yazmayın.
+konfiqurasiya edin. `ALTERNATIVE_MIN_SCORE` cari dataset və embedding eval nəticəsinə uyğun
+alternativ relevance həddidir; deployment və ya embedding text versiyası dəyişəndə yenidən
+kalibrasiya edilməlidir. Real açarları `.env.example` faylına yazmayın.
 
 300 məhsulu indeksləmək və vəziyyəti yoxlamaq üçün:
 
@@ -121,7 +130,7 @@ Embedding cache-ni bilərəkdən keçərək yenidən indeksləmək üçün:
 python -m app.indexing.products index --refresh-embeddings
 ```
 
-Qdrant semantic retrieval nəticəsini eyni 60 sorğu ilə ölçmək üçün:
+Qdrant semantic retrieval nəticəsini 30 canonical və 37 challenge sorğusu ilə ölçmək üçün:
 
 ```powershell
 python -m app.evals.product_semantic --update-baseline
@@ -131,40 +140,30 @@ python -m app.evals.product_semantic
 Semantic runner Azure mətn modelini və Supabase-i çağırmır; query embedding üçün Azure embedding
 deployment-indən istifadə edir.
 
-## Hybrid product search runtime
+## Qdrant-only product search runtime
 
-Azure və Qdrant konfiqurasiyası tam olduqda runtime `product_search` üç mənbəni birləşdirir:
+`product_search` söz uyğunluğu və lokal score hesablamır. Azure modeli struktur filterləri çıxarır;
+SKU, `product_id` və model Qdrant payload field-lərində exact yoxlanılır, digər sorğular isə yalnız
+`name + description` embedding-i ilə Qdrant-da semantic axtarılır. Bütün kateqoriya parametrləri
+Qdrant payload field-ləri kimi filterlənə bilir.
 
-- dəqiq `product_id`, SKU və unikal model uyğunluğu;
-- lokal söz əsaslı axtarış;
-- Azure embedding və Qdrant məna əsaslı axtarış.
+Exact məhsul və ya bütün şərtlərə uyğun nəticə tapılmadıqda backend `match_status` vasitəsilə bunu
+normal nəticədən ayırır və maksimum üç alternativ seçir. Kateqoriya, maksimum büdcə, stok və
+`required_filter_fields` daxilindəki tələblər yumşalmır; rəng, texniki üstünlüklər və brand/model
+ailəsi mərhələli yumşaldılır. Semantic score exact uyğunluq sayılmır, yalnız relevance həddini keçən
+alternativləri sıralayır.
 
-Nəticələr deterministik RRF sıralaması ilə birləşdirilir. Qiymət və reytinq sıralamalarında mövcud
-lokal katalog davranışı saxlanılır. Azure və ya Qdrant müvəqqəti əlçatan olmadıqda sorğu dayanmır;
-sistem exact və lexical nəticələrlə davam edir. Qdrant collection startup zamanı uyğun deyilsə semantic
-runtime söndürülür, amma API ayağa qalxır və health readiness bundan asılı olmur.
+Qdrant yalnız uyğun `product_id`-ləri və sıralama məlumatını qaytarır. İstifadəçiyə göstərilən tam
+məhsul JSON kataloqdan hydrate edilir. Qiymət və reytinq sıralaması ilk 50 semantic namizədə tətbiq
+olunur. Azure embedding və ya Qdrant əlçatan deyilsə söz əsaslı fallback edilmir; tool açıq
+`product_search_unavailable` xətası qaytarır.
 
-## Product retrieval baseline
-
-Lokal söz və metadata əsaslı `product_search` nəticəsini 30 canonical və 30 challenge sorğusu ilə
-yoxlamaq üçün:
-
-```powershell
-python -m app.evals.product_retrieval
-```
-
-Komanda cari nəticəni `data/evals/baselines/lexical_v1.json` ilə müqayisə edir və fərq olduqda
-uğursuz exit code qaytarır. Yalnız axtarış dəyişikliyi nəzərdən keçirildikdən sonra baseline-ı bilərəkdən
-yeniləyin:
-
-```powershell
-python -m app.evals.product_retrieval --update-baseline
-```
-
-Bu eval Azure, Supabase və şəbəkə çağırışı etmir; birbaşa lokal kataloq axtarışını ölçür.
+Köhnə `data/evals/baselines/lexical_v1.json` yalnız tarixi snapshot-dır və runtime/eval tərəfindən
+istifadə edilmir. Aktiv baseline `data/evals/baselines/semantic_qdrant_v2.json` faylıdır.
 
 ## Hazırkı sərhəd
 
 Sənəd RAG, operator handoff, streaming və auth hazırkı mərhələyə daxil deyil. Frontend məhsul
-cavablarını chat mətni kimi göstərir; məhsul kartları sonrakı mərhələyə saxlanılır. Public chat və
-`product_search` tool müqaviləsi dəyişmədən saxlanılır.
+cavablarını məhsul kartları ilə göstərə bilir. Public chat müqaviləsinin `presentation` hissəsinə
+alternativ statusu və kart fərqləri additive əlavə olunub; daxili `product_search` schema-sı exact
+identifier, sərt filter və uyğunluq statusları ilə genişləndirilib.

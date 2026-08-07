@@ -86,4 +86,36 @@ describe("salesBotApi", () => {
       message: "Serverlə əlaqə yaratmaq mümkün olmadı.",
     });
   });
+
+  it("loads a debug trace with the session and request identifiers", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          trace_version: 1,
+          detail_level: "full",
+          request_id: "22222222-2222-4222-8222-222222222222",
+          session_id: "11111111-1111-4111-8111-111111111111",
+          message_id: "33333333-3333-4333-8333-333333333333",
+          status: "completed",
+          model: { provider: "azure_openai", deployment: "gpt-test" },
+          diagnosis: { code: "products_found", data_status: "Tapılıb: 2" },
+          data_sources: {},
+          timeline: [],
+          warnings: [],
+          metrics: {},
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await salesBotApi.getDebugTrace("11111111-1111-4111-8111-111111111111", {
+      requestId: "22222222-2222-4222-8222-222222222222",
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/backend/v1/debug/traces?session_id=11111111-1111-4111-8111-111111111111&request_id=22222222-2222-4222-8222-222222222222",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
 });

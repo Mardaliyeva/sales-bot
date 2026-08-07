@@ -9,10 +9,11 @@ from qdrant_client import QdrantClient, models
 from app.embeddings.azure import DEFAULT_TEXT_VERSION
 from app.indexing.products import index_catalog
 from app.tools.catalog import ProductCatalog
-from app.tools.schemas import ProductSearchArguments
+from app.tools.schemas import AttributeFilter, ProductSearchArguments
 from app.vectorstores.qdrant import (
     QdrantProductStore,
     VectorStoreError,
+    build_embedding_text,
     build_product_payload,
     product_point_id,
 )
@@ -57,7 +58,7 @@ def test_product_payload_contains_filter_and_version_fields(catalog_path: object
     payload = build_product_payload(
         product,
         catalog_checksum=catalog.manifest["checksums"]["products_sha256"],
-        embedding_text_version="v1",
+        embedding_text_version=DEFAULT_TEXT_VERSION,
         embedding_deployment="text-embedding-3-large",
         embedding_dimensions=3072,
     )
@@ -65,8 +66,23 @@ def test_product_payload_contains_filter_and_version_fields(catalog_path: object
     assert payload["product_id"] == product["product_id"]
     assert payload["category_id"] == product["category"]["id"]
     assert payload["brand_normalized"]
+    assert payload["description"] == product["description"]
+    assert set(product["attributes"]) <= set(payload)
+    assert payload["attribute_fields"] == sorted(product["attributes"])
     assert payload["dataset_version"] == "1.0.0"
     assert payload["embedding_dimensions"] == 3072
+
+
+def test_embedding_text_contains_only_name_and_description(catalog_path: object) -> None:
+    catalog = ProductCatalog(catalog_path)  # type: ignore[arg-type]
+    catalog.load()
+    product = catalog.products[0]
+
+    text = build_embedding_text(product)
+
+    assert text == f"{product['name']}\n{product['description']}"
+    assert product["short_description"] not in text
+    assert product["embedding_text"] not in text
 
 
 def test_indexing_is_idempotent_and_status_is_ready(catalog_path: object) -> None:
@@ -81,7 +97,7 @@ def test_indexing_is_idempotent_and_status_is_ready(catalog_path: object) -> Non
             [product["product_id"] for product in catalog.products],
             expected_dataset_version="1.0.0",
             expected_catalog_checksum=catalog.manifest["checksums"]["products_sha256"],
-            expected_embedding_text_version="v1",
+            expected_embedding_text_version=DEFAULT_TEXT_VERSION,
             expected_embedding_deployment="different-deployment",
             expected_embedding_dimensions=2,
         )
@@ -93,6 +109,7 @@ def test_indexing_is_idempotent_and_status_is_ready(catalog_path: object) -> Non
     assert second.status.indexed_count == 300
     assert second.status.missing_product_ids == ()
     assert second.status.extra_product_ids == ()
+    assert second.status.payload_fields_match is True
     assert mismatched.metadata_matches is False
     assert mismatched.ready is False
 
@@ -113,6 +130,16 @@ def test_qdrant_filter_supports_all_product_search_fields() -> None:
         screen_size_in=55,
         connectivity="Bluetooth",
         active_noise_cancellation=True,
+        attribute_filters=[
+            AttributeFilter(field="cpu_brand", operator="eq", value="Intel"),
+            AttributeFilter(field="battery_mah", operator="gte", value=5000),
+            AttributeFilter(field="modes", operator="contains_any", value=["soyutma"]),
+            AttributeFilter(
+                field="indoor_unit_dimensions_mm",
+                operator="eq",
+                value="900 x 300 x 220 mm",
+            ),
+        ],
     )
 
     query_filter = QdrantProductStore.build_filter(args)
@@ -133,7 +160,27 @@ def test_qdrant_filter_supports_all_product_search_fields() -> None:
         "btu",
         "screen_size_in",
         "sale_price",
+        "cpu_brand_normalized",
+        "battery_mah",
+        "modes_normalized",
+        "indoor_unit_dimensions_mm_normalized",
     }
+
+
+def test_qdrant_exact_identifier_filter_uses_normalized_payload_fields() -> None:
+    args = ProductSearchArguments(
+        query="SYN-PH-APL-001",
+        sku="syn-ph-apl-001",
+        category_id="smartphones",
+    )
+
+    query_filter = QdrantProductStore.build_filter(args, include_identifiers=True)
+
+    assert query_filter is not None
+    assert query_filter.must is not None
+    keys = {condition.key for condition in query_filter.must if isinstance(condition, models.FieldCondition)}
+    assert "sku_normalized" in keys
+    assert "category_id" in keys
 
 
 def test_existing_incompatible_collection_is_not_recreated() -> None:

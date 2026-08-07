@@ -1,7 +1,7 @@
 {
   "dataset_version": "1.0.0",
   "seed": 20260804,
-  "generated_at": "2026-08-04T00:00:00+04:00",
+  "generated_at": "2026-08-06T13:53:35+04:00",
   "language": "az",
   "currency": "AZN",
   "synthetic": true,
@@ -92,7 +92,12 @@
     "error_count": 0
   },
   "checksums": {
-    "products_sha256": "0c750dcc28bfe6b58ccd0597b5157039bbed6aead8ad717ea66b930ae01749ba",
-    "schema_sha256": "d91ba6be9e33c13e7e756f59e1c8e49897dfaf2cfdf0f64d39b2eb96de56b7b8"
+    "products_sha256": "6828e695f485547310304ace3b3e7400d16ca2750d5e85e0848049b39e6172ec",
+    "schema_sha256": "87258e1828acf06ef60d1feef5d2395b4285d7e5430ebc9362feff108f033b63"
+  },
+  "naming": {
+    "product_names": "realistic_real-world_model_names",
+    "sku": "synthetic_stable_identifier",
+    "specifications_and_commercial_data": "synthetic_test_data"
   }
 }

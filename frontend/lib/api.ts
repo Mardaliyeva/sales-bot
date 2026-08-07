@@ -1,4 +1,9 @@
-import type { ChatResponse, ErrorResponse, SessionCreateResponse } from "@/lib/types";
+import type {
+  ChatResponse,
+  DebugTraceResponse,
+  ErrorResponse,
+  SessionCreateResponse,
+} from "@/lib/types";
 
 const API_PREFIX = "/backend";
 
@@ -7,6 +12,7 @@ export class SalesBotApiError extends Error {
     public readonly status: number,
     public readonly code: string,
     message: string,
+    public readonly requestId: string | null = null,
   ) {
     super(message);
     this.name = "SalesBotApiError";
@@ -39,6 +45,7 @@ async function request<T>(path: string, init: RequestInit): Promise<T> {
       response.status,
       payload?.error?.code || "request_failed",
       payload?.error?.message || "Sorğu tamamlanmadı.",
+      payload?.request_id || null,
     );
   }
   return response.json() as Promise<T>;
@@ -55,4 +62,15 @@ export const salesBotApi = {
       method: "POST",
       body: JSON.stringify({ session_id: sessionId, message }),
     }),
+  getDebugTrace: (
+    sessionId: string,
+    lookup: { requestId?: string; messageId?: string },
+  ) => {
+    const params = new URLSearchParams({ session_id: sessionId });
+    if (lookup.requestId) params.set("request_id", lookup.requestId);
+    else if (lookup.messageId) params.set("message_id", lookup.messageId);
+    return request<DebugTraceResponse>(`/v1/debug/traces?${params.toString()}`, {
+      method: "GET",
+    });
+  },
 };

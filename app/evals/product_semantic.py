@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
-from collections import defaultdict
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
@@ -12,8 +10,7 @@ from pydantic import ValidationError
 
 from app.config import get_settings
 from app.embeddings.azure import DEFAULT_TEXT_VERSION, AzureEmbeddingClient, EmbeddingError
-from app.evals.product_retrieval import BASELINE_PATH as LEXICAL_BASELINE_PATH
-from app.evals.product_retrieval import (
+from app.evals.product_cases import (
     CaseResult,
     EvalDataError,
     RetrievalEvalCase,
@@ -23,79 +20,16 @@ from app.evals.product_retrieval import (
     load_eval_cases,
     serialize_report,
 )
+from app.retrieval.qdrant import ALTERNATIVE_LIMIT, DEFAULT_ALTERNATIVE_MIN_SCORE
 from app.retrieval.semantic import SemanticProductSearch
 from app.tools.catalog import CatalogLoadError, ProductCatalog
 from app.vectorstores.qdrant import CollectionStatus, QdrantProductStore, VectorStoreError
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-SEMANTIC_BASELINE_PATH = PROJECT_ROOT / "data" / "evals" / "baselines" / "semantic_qdrant_v1.json"
-SEARCH_VERSION = "semantic_qdrant_v1"
-
-
-def _mean(values: Sequence[float]) -> float:
-    return round(sum(values) / len(values), 6) if values else 0.0
-
-
-def _ratio(numerator: int, denominator: int, *, empty_value: float = 0.0) -> float:
-    return round(numerator / denominator, 6) if denominator else empty_value
-
-
-def summarize_by_type(cases: Sequence[dict[str, Any]]) -> dict[str, dict[str, Any]]:
-    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for case in cases:
-        grouped[str(case["type"])].append(case)
-    summaries: dict[str, dict[str, Any]] = {}
-    for case_type in sorted(grouped):
-        values = grouped[case_type]
-        relevant = [case for case in values if not case["expect_empty"]]
-        empty = [case for case in values if case["expect_empty"]]
-        summaries[case_type] = {
-            "case_count": len(values),
-            "mean_precision_at_5": _mean([float(case["precision_at_5"]) for case in relevant]),
-            "mean_top_5_coverage": _mean([float(case["top_5_coverage"]) for case in relevant]),
-            "hit_at_5": _ratio(sum(bool(case["hit_at_5"]) for case in relevant), len(relevant)),
-            "mean_reciprocal_rank": _mean([float(case["reciprocal_rank"]) for case in relevant]),
-            "empty_result_accuracy": _ratio(
-                sum(case["empty_result_correct"] is True for case in empty),
-                len(empty),
-                empty_value=1.0,
-            ),
-        }
-    return summaries
-
-
-def build_lexical_comparison(
-    semantic_cases: Sequence[dict[str, Any]],
-    lexical_baseline_path: Path = LEXICAL_BASELINE_PATH,
-) -> dict[str, Any]:
-    try:
-        lexical_report = json.loads(lexical_baseline_path.read_text(encoding="utf-8"))
-        lexical_cases = lexical_report["cases"]
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
-        raise EvalDataError("Lexical baseline oxuna bilmədi") from exc
-    lexical = summarize_by_type(lexical_cases)
-    semantic = summarize_by_type(semantic_cases)
-    comparison: dict[str, Any] = {}
-    for case_type in sorted(set(lexical) | set(semantic)):
-        lexical_metrics = lexical.get(case_type, {})
-        semantic_metrics = semantic.get(case_type, {})
-        deltas = {
-            metric: round(float(semantic_metrics[metric]) - float(lexical_metrics[metric]), 6)
-            for metric in (
-                "mean_precision_at_5",
-                "mean_top_5_coverage",
-                "hit_at_5",
-                "mean_reciprocal_rank",
-                "empty_result_accuracy",
-            )
-            if metric in lexical_metrics and metric in semantic_metrics
-        }
-        comparison[case_type] = {
-            "lexical": lexical_metrics,
-            "semantic": semantic_metrics,
-            "delta_semantic_minus_lexical": deltas,
-        }
-    return comparison
+SEMANTIC_BASELINE_PATH = (
+    PROJECT_ROOT / "data" / "evals" / "baselines" / "semantic_qdrant_v2.json"
+)
+SEARCH_VERSION = "semantic_qdrant_v2"
 
 
 def build_semantic_gates(results: Sequence[CaseResult], status: CollectionStatus) -> dict[str, Any]:
@@ -107,7 +41,20 @@ def build_semantic_gates(results: Sequence[CaseResult], status: CollectionStatus
     ]
     canonical_empty = [result for result in canonical_metadata if result.expect_empty]
     challenge_empty = [
-        result for result in results if result.suite == "challenge" and result.expect_empty
+        result
+        for result in results
+        if result.suite == "challenge" and result.type == "negative" and result.expect_empty
+    ]
+    challenge_alternatives = [
+        result
+        for result in results
+        if result.suite == "challenge"
+        and result.type in {"alternatives", "alternative_negative"}
+    ]
+    challenge_exact = [
+        result
+        for result in results
+        if result.suite == "challenge" and result.type == "exact_identifier"
     ]
     metadata_exact = sum(
         result.total_count_matches
@@ -115,6 +62,7 @@ def build_semantic_gates(results: Sequence[CaseResult], status: CollectionStatus
         and len(result.hit_product_ids) == min(5, result.expected_total)
         for result in canonical_metadata
     )
+    exact_top_one = sum(result.first_hit_rank == 1 for result in challenge_exact)
     checks = {
         "index_ready": {"actual": status.ready, "expected": True, "passed": status.ready},
         "canonical_metadata_exact": {
@@ -125,20 +73,31 @@ def build_semantic_gates(results: Sequence[CaseResult], status: CollectionStatus
         "canonical_empty_results": {
             "actual": sum(result.empty_result_correct is True for result in canonical_empty),
             "expected": 6,
-            "passed": all(result.empty_result_correct is True for result in canonical_empty)
-            and len(canonical_empty) == 6,
+            "passed": len(canonical_empty) == 6
+            and all(result.empty_result_correct is True for result in canonical_empty),
         },
         "challenge_empty_results": {
             "actual": sum(result.empty_result_correct is True for result in challenge_empty),
             "expected": 6,
-            "passed": all(result.empty_result_correct is True for result in challenge_empty)
-            and len(challenge_empty) == 6,
+            "passed": len(challenge_empty) == 6
+            and all(result.empty_result_correct is True for result in challenge_empty),
         },
         "canonical_semantic_hit_at_5": {
             "actual": sum(result.hit_at_5 for result in canonical_semantic),
             "expected": 6,
-            "passed": all(result.hit_at_5 for result in canonical_semantic)
-            and len(canonical_semantic) == 6,
+            "passed": len(canonical_semantic) == 6
+            and all(result.hit_at_5 for result in canonical_semantic),
+        },
+        "challenge_exact_identifier_top_1": {
+            "actual": exact_top_one,
+            "expected": 6,
+            "passed": len(challenge_exact) == 6 and exact_top_one == 6,
+        },
+        "challenge_alternative_policy": {
+            "actual": sum(result.outcome == "passed" for result in challenge_alternatives),
+            "expected": 7,
+            "passed": len(challenge_alternatives) == 7
+            and all(result.outcome == "passed" for result in challenge_alternatives),
         },
     }
     return {"passed": all(check["passed"] for check in checks.values()), "checks": checks}
@@ -152,28 +111,35 @@ def build_semantic_report(
     *,
     embedding_deployment: str,
     embedding_dimensions: int,
-    lexical_baseline_path: Path = LEXICAL_BASELINE_PATH,
+    alternative_min_score: float = DEFAULT_ALTERNATIVE_MIN_SCORE,
 ) -> dict[str, Any]:
-    report = build_report(catalog, cases, backend=backend, search_version=SEARCH_VERSION)
+    report = build_report(
+        catalog,
+        cases,
+        backend=backend,
+        search_version=SEARCH_VERSION,
+    )
     results = [CaseResult.model_validate(case) for case in report["cases"]]
-    report["schema_version"] = 2
+    report["schema_version"] = 3
     report["embedding"] = {
         "deployment": embedding_deployment,
         "dimensions": embedding_dimensions,
         "text_version": DEFAULT_TEXT_VERSION,
+        "input_fields": ["name", "description"],
     }
     report["qdrant"] = {
         "collection_name": status.collection_name,
         "indexed_count": status.indexed_count,
         "vector_size": status.vector_size,
         "distance": status.distance,
+        "payload_fields_match": status.payload_fields_match,
         "ready": status.ready,
     }
+    report["retrieval_policy"] = {
+        "alternative_min_score": alternative_min_score,
+        "max_alternatives": ALTERNATIVE_LIMIT,
+    }
     report["canonical_gates"] = build_semantic_gates(results, status)
-    report["comparison_with_lexical"] = build_lexical_comparison(
-        report["cases"],
-        lexical_baseline_path,
-    )
     return report
 
 
@@ -183,12 +149,12 @@ def render_semantic_report(report: dict[str, Any]) -> str:
     gate_status = "KEÇDİ" if report["canonical_gates"]["passed"] else "UĞURSUZ"
     return "\n".join(
         [
-            "Semantic Product Retrieval Baseline",
+            "Qdrant-only Product Retrieval Baseline",
             f"Dataset: {report['dataset']['dataset_version']} ({report['dataset']['product_count']} məhsul)",
             f"Search: {report['search_version']}",
             (
                 f"Embedding: {report['embedding']['deployment']} "
-                f"({report['embedding']['dimensions']} dimensions)"
+                f"({report['embedding']['dimensions']} dimensions, name + description)"
             ),
             f"Qdrant: {report['qdrant']['collection_name']} ({report['qdrant']['indexed_count']} point)",
             (
@@ -262,10 +228,15 @@ def run_semantic_evaluation(
         )
         if not status.ready:
             raise VectorStoreError(
-                "Qdrant indeksi hazır deyil; əvvəl python -m app.indexing.products index işlədin"
+                "Qdrant v2 indeksi hazır deyil; əvvəl python -m app.indexing.products index işlədin"
             )
         embeddings = AzureEmbeddingClient.from_settings(settings)
-        backend = SemanticProductSearch(catalog, embeddings, store)
+        backend = SemanticProductSearch(
+            catalog,
+            embeddings,
+            store,
+            alternative_min_score=settings.alternative_min_score,
+        )
         report = build_semantic_report(
             catalog,
             cases,
@@ -273,6 +244,7 @@ def run_semantic_evaluation(
             status,
             embedding_deployment=embeddings.deployment,
             embedding_dimensions=embeddings.dimensions,
+            alternative_min_score=settings.alternative_min_score,
         )
     except (
         CatalogLoadError,
@@ -302,11 +274,11 @@ def run_semantic_evaluation(
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Azure və Qdrant semantic retrieval evaluator")
+    parser = argparse.ArgumentParser(description="Qdrant-only product retrieval evaluator")
     parser.add_argument(
         "--update-baseline",
         action="store_true",
-        help="Cari nəticəni semantic_qdrant_v1 baseline kimi saxla",
+        help="Cari nəticəni semantic_qdrant_v2 baseline kimi saxla",
     )
     return parser.parse_args(argv)
 

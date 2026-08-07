@@ -30,7 +30,7 @@ RuntimeDep = Annotated[AgentRuntime, Depends(get_agent_runtime)]
 LockManagerDep = Annotated[SessionLockManager, Depends(get_lock_manager)]
 
 
-@router.post("/chat", response_model=ChatResponse)
+@router.post("/chat", response_model=ChatResponse, response_model_exclude_none=True)
 async def chat(
     payload: ChatRequest,
     database: DatabaseDep,
@@ -112,4 +112,5 @@ async def chat(
         answer=result.answer,
         used_tools=result.used_tools,
         finish_reason="completed",
+        presentation=result.presentation,
     )

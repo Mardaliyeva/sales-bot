@@ -11,7 +11,12 @@ from pydantic import ValidationError
 from app.config import get_settings
 from app.embeddings.azure import DEFAULT_TEXT_VERSION, AzureEmbeddingClient, EmbeddingError
 from app.tools.catalog import CatalogLoadError, ProductCatalog
-from app.vectorstores.qdrant import CollectionStatus, QdrantProductStore, VectorStoreError
+from app.vectorstores.qdrant import (
+    CollectionStatus,
+    QdrantProductStore,
+    VectorStoreError,
+    build_embedding_text,
+)
 
 
 class ProductEmbeddingBackend(Protocol):
@@ -45,7 +50,7 @@ def index_catalog(
     checksum = catalog.manifest["checksums"]["products_sha256"]
     store.ensure_collection()
     vectors = embeddings.embed(
-        [product["embedding_text"] for product in catalog.products],
+        [build_embedding_text(product) for product in catalog.products],
         text_version=DEFAULT_TEXT_VERSION,
         refresh=refresh_embeddings,
     )
@@ -78,6 +83,7 @@ def _print_status(status: CollectionStatus) -> None:
     print(f"Embedding text versiyası: {', '.join(status.embedding_text_versions) or '-'}")
     print(f"Embedding deployment: {', '.join(status.embedding_deployments) or '-'}")
     print(f"Metadata uyğundur: {'bəli' if status.metadata_matches else 'xeyr'}")
+    print(f"Payload field-ləri uyğundur: {'bəli' if status.payload_fields_match else 'xeyr'}")
     print(f"Çatışmayan ID sayı: {len(status.missing_product_ids)}")
     print(f"Artıq ID sayı: {len(status.extra_product_ids)}")
     print(f"Hazırdır: {'bəli' if status.ready else 'xeyr'}")
