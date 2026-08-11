@@ -4,10 +4,13 @@ import asyncio
 import os
 import subprocess
 import sys
+from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import update
 
 from app.config import Settings
+from app.db.models import ChatSession
 from app.db.repositories import ConversationRepository
 from app.db.session import Database
 
@@ -42,5 +45,30 @@ async def test_migration_and_session_persistence() -> None:
         loaded = await repository.get_session(session.id)
         assert loaded.id == session.id
         assert loaded.status == "active"
+
+        expired_at = datetime.now(UTC) - timedelta(minutes=1)
+        async with database.session() as db, db.begin():
+            await db.execute(
+                update(ChatSession)
+                .where(ChatSession.id == session.id)
+                .values(
+                    expires_at=expired_at,
+                    context={
+                        "last_product_ids": ["prd_test_001"],
+                        "memory": {
+                            "version": 2,
+                            "continuation_summary": "Silinməli sessiya konteksti",
+                        },
+                    },
+                )
+            )
+
+        assert await repository.scrub_expired_session_contexts() == 1
+        async with database.session() as db:
+            scrubbed = await db.get(ChatSession, session.id)
+            assert scrubbed is not None
+            assert scrubbed.status == "expired"
+            assert scrubbed.context == {}
+        assert await repository.scrub_expired_session_contexts() == 0
     finally:
         await database.dispose()

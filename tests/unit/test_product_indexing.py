@@ -69,7 +69,7 @@ def test_product_payload_contains_filter_and_version_fields(catalog_path: object
     assert payload["description"] == product["description"]
     assert set(product["attributes"]) <= set(payload)
     assert payload["attribute_fields"] == sorted(product["attributes"])
-    assert payload["dataset_version"] == "1.0.0"
+    assert payload["dataset_version"] == catalog.manifest["dataset_version"]
     assert payload["embedding_dimensions"] == 3072
 
 

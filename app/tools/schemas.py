@@ -14,6 +14,13 @@ CategoryId = Literal[
 ]
 ColorCode = Literal["black", "white", "blue", "green", "gold", "gray", "silver", "pink"]
 SortOption = Literal["relevance", "price_asc", "price_desc", "rating_desc"]
+SearchIntent = Literal["lookup", "discover"]
+SemanticOperation = Literal["lookup", "discover", "compare"]
+SemanticOperator = Literal["eq", "not_eq", "in", "not_in", "lt", "lte", "gt", "gte"]
+PredicateStrength = Literal["hard", "preference"]
+EntityState = Literal["selected", "superseded"]
+IdentifierType = Literal["auto", "product_id", "sku", "model", "model_family"]
+MemoryAction = Literal["replace", "merge", "preserve"]
 AttributeOperator = Literal["eq", "gte", "lte", "in", "contains_any"]
 AttributeField = Literal[
     "active_noise_cancellation",
@@ -71,7 +78,318 @@ TopLevelPreferenceField = Literal[
     "active_noise_cancellation",
 ]
 RequiredFilterField = TopLevelPreferenceField | AttributeField
-MatchStatus = Literal["exact_match", "matching_products", "alternatives", "not_found"]
+RequestedField = Literal[
+    "name",
+    "sku",
+    "model",
+    "brand",
+    "model_family",
+    "category_id",
+    "price",
+    "stock_status",
+    "color",
+    "warranty_months",
+    "rating",
+] | AttributeField
+MatchStatus = Literal[
+    "exact_match",
+    "exact_conflict",
+    "matching_products",
+    "alternatives",
+    "clarification_required",
+    "not_found",
+]
+
+
+class ProductEntity(BaseModel):
+    """A product mention extracted by the model, before catalog resolution."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entity_id: str = Field(min_length=1, max_length=40)
+    raw_text: str = Field(min_length=1, max_length=200)
+    state: EntityState = "selected"
+    supersedes_entity_id: str | None = Field(default=None, max_length=40)
+    evidence_text: str = Field(
+        min_length=1,
+        max_length=300,
+        description=(
+            "Shortest exact span from the current message that identifies this product mention"
+        ),
+    )
+    identifier_type: IdentifierType = Field(
+        default="auto",
+        description=(
+            "Catalog namespace, not a free-form label: exact product ID, SKU, exact model, "
+            "model family, or auto when the namespace is not explicit. model_family is only a "
+            "named product line/family; manufacturer brands use auto"
+        ),
+    )
+    context_product_id: str | None = Field(
+        default=None,
+        max_length=120,
+        description="Only a product ID copied from the server-provided session context",
+    )
+    memory_refs: list[str] = Field(
+        default_factory=list,
+        max_length=5,
+        description=(
+            "Opaque memory IDs copied from server-provided session memory when this entity "
+            "continues, revises, or derives meaning from an earlier confirmed entity"
+        ),
+    )
+
+
+class SemanticPredicate(BaseModel):
+    """A typed catalog predicate. Natural-language interpretation happens upstream."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    field: str = Field(
+        min_length=1,
+        max_length=100,
+        description=(
+            "Catalog field at the same semantic granularity explicitly requested by the user. "
+            "brand is only a manufacturer/company name, model_family is a named product line or "
+            "family, model is an exact model identifier, and category_id is a broad product type. "
+            "Never infer brand merely from knowing who makes a named family/model"
+        ),
+    )
+    operator: SemanticOperator
+    value: str | int | float | bool | list[str] | list[int] | list[float] = Field(
+        description=(
+            "Value supported by evidence_text. Preserve the user's named value; catalog aliases "
+            "and canonical values are resolved by the backend"
+        )
+    )
+    strength: PredicateStrength
+    unit: str | None = Field(default=None, max_length=30)
+    evidence_text: str = Field(
+        min_length=1,
+        max_length=300,
+        description=(
+            "Shortest exact span from the current message that supports this specific field, "
+            "operator, and value; never use the whole message merely to justify an unstated default"
+        ),
+    )
+    memory_refs: list[str] = Field(
+        default_factory=list,
+        max_length=5,
+        description=(
+            "Opaque server-provided memory IDs that ground inherited constraints or catalog "
+            "facts. Empty for meaning supported only by the current message"
+        ),
+    )
+
+
+class SemanticExpression(BaseModel):
+    """Recursive, language-independent selection/filter/ranking expression."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal[
+        "predicate",
+        "all_of",
+        "any_of",
+        "not",
+        "fallback",
+        "prefer",
+        "entity_ref",
+    ] = Field(
+        description=(
+            "Shape discriminator: predicate uses predicate; all_of/any_of use expressions; "
+            "not/prefer use expression; fallback uses primary and secondary; entity_ref uses entity_id"
+        )
+    )
+    predicate: SemanticPredicate | None = Field(
+        default=None,
+        description="Present only when kind=predicate",
+    )
+    expressions: list[SemanticExpression] | None = Field(
+        default=None,
+        max_length=20,
+        description="Non-empty child list, present only when kind=all_of or kind=any_of",
+    )
+    expression: SemanticExpression | None = Field(
+        default=None,
+        description="Single child, present only when kind=not or kind=prefer",
+    )
+    primary: SemanticExpression | None = Field(
+        default=None,
+        description="First ordered branch, present only when kind=fallback",
+    )
+    secondary: SemanticExpression | None = Field(
+        default=None,
+        description="Second ordered branch, present only when kind=fallback",
+    )
+    entity_id: str | None = Field(
+        default=None,
+        max_length=40,
+        description="Referenced entity ID, present only when kind=entity_ref",
+    )
+
+    @model_validator(mode="after")
+    def validate_shape(self) -> SemanticExpression:
+        populated = {
+            "predicate": self.predicate is not None,
+            "expressions": self.expressions is not None,
+            "expression": self.expression is not None,
+            "primary": self.primary is not None,
+            "secondary": self.secondary is not None,
+            "entity_id": self.entity_id is not None,
+        }
+        required: dict[str, set[str]] = {
+            "predicate": {"predicate"},
+            "all_of": {"expressions"},
+            "any_of": {"expressions"},
+            "not": {"expression"},
+            "prefer": {"expression"},
+            "fallback": {"primary", "secondary"},
+            "entity_ref": {"entity_id"},
+        }
+        expected = required[self.kind]
+        actual = {name for name, is_set in populated.items() if is_set}
+        if actual != expected:
+            raise ValueError(f"{self.kind} expression fields must be exactly: {sorted(expected)}")
+        if self.kind in {"all_of", "any_of"} and not self.expressions:
+            raise ValueError(f"{self.kind} requires at least one child expression")
+        return self
+
+    def depth(self) -> int:
+        if self.kind in {"predicate", "entity_ref"}:
+            return 1
+        if self.kind in {"all_of", "any_of"}:
+            return 1 + max(child.depth() for child in self.expressions or [])
+        if self.kind in {"not", "prefer"}:
+            return 1 + (self.expression.depth() if self.expression else 0)
+        return 1 + max(
+            self.primary.depth() if self.primary else 0,
+            self.secondary.depth() if self.secondary else 0,
+        )
+
+    def predicate_count(self) -> int:
+        if self.kind == "predicate":
+            return 1
+        if self.kind in {"all_of", "any_of"}:
+            return sum(child.predicate_count() for child in self.expressions or [])
+        if self.kind in {"not", "prefer"}:
+            return self.expression.predicate_count() if self.expression else 0
+        if self.kind == "fallback":
+            return (self.primary.predicate_count() if self.primary else 0) + (
+                self.secondary.predicate_count() if self.secondary else 0
+            )
+        return 0
+
+
+class FactQuestion(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    field: str = Field(min_length=1, max_length=100)
+    operator: SemanticOperator | None = None
+    value: str | int | float | bool | list[str] | list[int] | list[float] | None = None
+    unit: str | None = Field(default=None, max_length=30)
+    evidence_text: str = Field(min_length=1, max_length=300)
+    memory_refs: list[str] = Field(default_factory=list, max_length=5)
+
+
+class MemoryRemoval(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    memory_id: str = Field(min_length=1, max_length=100)
+    evidence_text: str = Field(
+        min_length=1,
+        max_length=300,
+        description="Exact current-message span that supports removing this memory element",
+    )
+
+
+class ProductQueryPlan(BaseModel):
+    """Semantic tool contract emitted by the first model round."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(min_length=1, max_length=500)
+    operation: SemanticOperation
+    entities: list[ProductEntity] = Field(default_factory=list, max_length=3)
+    selection_expression: SemanticExpression | None = None
+    filter_expression: SemanticExpression | None = None
+    preference_expression: SemanticExpression | None = None
+    fact_questions: list[FactQuestion] = Field(default_factory=list, max_length=20)
+    recommendation_requested: bool = False
+    memory_action: MemoryAction = Field(
+        default="replace",
+        description=(
+            "replace starts a new independent product state; merge revises or continues the "
+            "confirmed session memory; preserve answers a read-only fact without changing the "
+            "active semantic state"
+        ),
+    )
+    referenced_memory_ids: list[str] = Field(default_factory=list, max_length=20)
+    removed_memory_ids: list[str] = Field(default_factory=list, max_length=20)
+    memory_removals: list[MemoryRemoval] = Field(default_factory=list, max_length=20)
+    needs_clarification: bool = Field(
+        default=False,
+        description=(
+            "True only when the semantic meaning or referent cannot be selected safely. False for a "
+            "valid broad/filter-only discovery that merely lacks optional category, budget, or preferences"
+        ),
+    )
+    clarification_question: str | None = Field(default=None, max_length=300)
+    sort: SortOption = "relevance"
+    limit: int = Field(default=3, ge=1, le=3)
+    context_product_ids: list[str] = Field(default_factory=list, max_length=3, exclude=True)
+    context_memory: dict[str, Any] = Field(default_factory=dict, exclude=True)
+
+    @model_validator(mode="after")
+    def validate_plan(self) -> ProductQueryPlan:
+        ids = [entity.entity_id for entity in self.entities]
+        if len(ids) != len(set(ids)):
+            raise ValueError("entity_id values must be unique")
+        known_ids = set(ids)
+        for entity in self.entities:
+            if entity.supersedes_entity_id and entity.supersedes_entity_id not in known_ids:
+                raise ValueError("supersedes_entity_id must refer to an entity in this plan")
+            if entity.supersedes_entity_id == entity.entity_id:
+                raise ValueError("an entity cannot supersede itself")
+        expressions = [
+            expression
+            for expression in (
+                self.selection_expression,
+                self.filter_expression,
+                self.preference_expression,
+            )
+            if expression is not None
+        ]
+        if any(expression.depth() > 6 for expression in expressions):
+            raise ValueError("semantic expression depth cannot exceed 6")
+        if sum(expression.predicate_count() for expression in expressions) > 20:
+            raise ValueError("semantic plan cannot contain more than 20 predicates")
+
+        def validate_refs(expression: SemanticExpression) -> None:
+            if expression.kind == "entity_ref" and expression.entity_id not in known_ids:
+                raise ValueError("entity_ref must refer to an entity in this plan")
+            for child in expression.expressions or []:
+                validate_refs(child)
+            for child in (expression.expression, expression.primary, expression.secondary):
+                if child is not None:
+                    validate_refs(child)
+
+        for expression in expressions:
+            validate_refs(expression)
+        if self.needs_clarification and not self.clarification_question:
+            raise ValueError("clarification_question is required when needs_clarification is true")
+        if len(self.referenced_memory_ids) != len(set(self.referenced_memory_ids)):
+            raise ValueError("referenced_memory_ids values must be unique")
+        if len(self.removed_memory_ids) != len(set(self.removed_memory_ids)):
+            raise ValueError("removed_memory_ids values must be unique")
+        removal_evidence_ids = [item.memory_id for item in self.memory_removals]
+        if len(removal_evidence_ids) != len(set(removal_evidence_ids)):
+            raise ValueError("memory_removals memory_id values must be unique")
+        if set(removal_evidence_ids) != set(self.removed_memory_ids):
+            raise ValueError(
+                "memory_removals must provide current-message evidence for every removed_memory_id"
+            )
+        return self
 
 NUMERIC_ATTRIBUTE_FIELDS = frozenset(
     {
@@ -178,6 +496,20 @@ class ProductSearchArguments(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     query: str = Field(min_length=1, max_length=500)
+    search_intent: SearchIntent = Field(
+        default="discover",
+        description=(
+            "lookup konkret məhsul haqqında məlumat üçündür; discover uyğun məhsul seçimi üçündür"
+        ),
+    )
+    requested_fields: list[RequestedField] = Field(
+        default_factory=list,
+        max_length=20,
+        description=(
+            "İstifadəçinin qiymət, stok və ya texniki xüsusiyyət kimi öyrənmək istədiyi sahələr; "
+            "bunlar filtr deyil"
+        ),
+    )
     product_id: str | None = Field(
         default=None,
         max_length=120,
@@ -221,6 +553,10 @@ class ProductSearchArguments(BaseModel):
     )
     sort: SortOption = "relevance"
     limit: int = Field(default=5, ge=1, le=5)
+    semantic_filter_expression: SemanticExpression | None = Field(default=None, exclude=True)
+    semantic_preference_expression: SemanticExpression | None = Field(default=None, exclude=True)
+    excluded_product_ids: list[str] = Field(default_factory=list, max_length=3, exclude=True)
+    semantic_plan_compiled: bool = Field(default=False, exclude=True)
 
     @model_validator(mode="after")
     def validate_filters(self) -> ProductSearchArguments:
@@ -232,6 +568,8 @@ class ProductSearchArguments(BaseModel):
             raise ValueError("Eyni attribute field və operator təkrar verilə bilməz")
         if len(self.required_filter_fields) != len(set(self.required_filter_fields)):
             raise ValueError("required_filter_fields təkrarlanmamalıdır")
+        if len(self.requested_fields) != len(set(self.requested_fields)):
+            raise ValueError("requested_fields təkrarlanmamalıdır")
         provided_fields = {
             field
             for field in (
@@ -291,3 +629,41 @@ class ProductSearchResult(BaseModel):
     applied_filters: dict[str, Any]
     relaxed_fields: list[str] = Field(default_factory=list)
     items: list[ProductSearchItem]
+    requested_item: ProductSearchItem | None = None
+    constraint_conflicts: list[str] = Field(default_factory=list)
+    argument_corrections: list[dict[str, Any]] = Field(default_factory=list)
+    recommended_product_id: str | None = None
+    display_product_ids: list[str] = Field(default_factory=list)
+    operation: SemanticOperation = "discover"
+    resolved_entities: list[dict[str, Any]] = Field(default_factory=list)
+    entity_results: list[dict[str, Any]] = Field(default_factory=list)
+    canonical_query_hash: str | None = None
+    clarification: dict[str, Any] | None = None
+    unavailable_requested_values: list[dict[str, Any]] = Field(default_factory=list)
+
+
+SemanticExpression.model_rebuild()
+
+
+class DocumentSearchArguments(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    query: str = Field(min_length=1, max_length=500)
+    limit: int = Field(default=5, ge=1, le=5)
+
+
+class DocumentSearchChunk(BaseModel):
+    chunk_id: str
+    document_id: str
+    title: str
+    heading: str
+    text: str
+    score: float
+
+
+class DocumentSearchResult(BaseModel):
+    status: Literal["success"] = "success"
+    match_status: Literal["found", "not_found"]
+    total: int = Field(ge=0)
+    min_score: float = Field(ge=0, le=1)
+    chunks: list[DocumentSearchChunk]

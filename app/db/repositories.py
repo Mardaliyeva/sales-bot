@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select, update
 
+from app.agent.memory import SessionMemory
 from app.config import Settings
 from app.db.models import AgentRun, ChatMessage, ChatSession
 from app.db.session import Database
@@ -55,7 +56,11 @@ class ConversationRepository:
             model=self.settings.azure_text_model,
             reasoning_effort=self.settings.reasoning_effort,
             max_tool_count=self.settings.max_tool_count,
-            context={"last_product_ids": [], "focused_product_id": None},
+            context={
+                "last_product_ids": [],
+                "focused_product_id": None,
+                "memory": SessionMemory().model_dump(mode="json", exclude_none=True),
+            },
             created_at=now,
             updated_at=now,
             expires_at=now + timedelta(hours=self.settings.session_ttl_hours),
@@ -74,6 +79,7 @@ class ConversationRepository:
             now = datetime.now(UTC)
             if item.status == "active" and item.expires_at <= now:
                 item.status = "expired"
+                item.context = {}
                 item.updated_at = now
                 await db.commit()
             if item.status == "expired":
@@ -81,6 +87,27 @@ class ConversationRepository:
             if item.status != "active":
                 raise SessionClosedError
             return item
+
+    async def scrub_expired_session_contexts(
+        self,
+        *,
+        now: datetime | None = None,
+    ) -> int:
+        """Expire sessions and remove their cache-like context without deleting audit runs."""
+        cutoff = now or datetime.now(UTC)
+        async with self.database.session() as db, db.begin():
+            result = await db.execute(
+                update(ChatSession)
+                .where(
+                    ChatSession.expires_at <= cutoff,
+                    or_(
+                        ChatSession.status != "expired",
+                        ChatSession.context != {},
+                    ),
+                )
+                .values(status="expired", context={}, updated_at=cutoff)
+            )
+        return int(result.rowcount or 0)
 
     async def start_run(
         self,
@@ -238,6 +265,7 @@ class ConversationRepository:
         reasoning_tokens: int,
         latency_ms: int,
         last_product_ids: list[str] | None,
+        session_memory: dict[str, Any] | None,
         debug_trace: dict[str, Any] | None,
     ) -> ChatMessage:
         now = datetime.now(UTC)
@@ -269,10 +297,15 @@ class ConversationRepository:
             run.debug_trace = debug_trace
             run.completed_at = now
             session.updated_at = now
-            if last_product_ids is not None:
+            if last_product_ids is not None or session_memory is not None:
                 context = dict(session.context or {})
-                context["last_product_ids"] = last_product_ids
-                context["focused_product_id"] = last_product_ids[0] if len(last_product_ids) == 1 else None
+                if last_product_ids is not None:
+                    context["last_product_ids"] = last_product_ids
+                    context["focused_product_id"] = (
+                        last_product_ids[0] if len(last_product_ids) == 1 else None
+                    )
+                if session_memory is not None:
+                    context["memory"] = session_memory
                 session.context = context
             await db.flush()
         return message

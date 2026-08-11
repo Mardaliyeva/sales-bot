@@ -264,8 +264,8 @@
       "in_stock": true
     },
     "expected_product_ids": [
-      "prd_air_conditioners_001",
-      "prd_air_conditioners_004",
+      "prd_air_conditioners_002",
+      "prd_air_conditioners_008",
       "prd_air_conditioners_010"
     ],
     "expect_empty": false
@@ -391,7 +391,9 @@
     "filters": {
       "category_id": "smartphones",
       "brand": "SyntheticMissingBrand",
-      "required_filter_fields": ["brand"]
+      "required_filter_fields": [
+        "brand"
+      ]
     },
     "expected_product_ids": [],
     "expect_empty": true,
@@ -405,7 +407,9 @@
       "category_id": "tablets",
       "brand": "Apple",
       "btu": 12000,
-      "required_filter_fields": ["btu"]
+      "required_filter_fields": [
+        "btu"
+      ]
     },
     "expected_product_ids": [],
     "expect_empty": true,
@@ -418,7 +422,9 @@
     "filters": {
       "category_id": "laptops",
       "brand": "Apple",
-      "required_filter_fields": ["brand"]
+      "required_filter_fields": [
+        "brand"
+      ]
     },
     "expected_product_ids": [],
     "expect_empty": true,
@@ -431,7 +437,9 @@
     "filters": {
       "category_id": "air_conditioners",
       "brand": "SyntheticMissingBrand",
-      "required_filter_fields": ["brand"]
+      "required_filter_fields": [
+        "brand"
+      ]
     },
     "expected_product_ids": [],
     "expect_empty": true,
@@ -445,7 +453,9 @@
       "category_id": "televisions",
       "brand": "Samsung",
       "storage_gb": 128,
-      "required_filter_fields": ["storage_gb"]
+      "required_filter_fields": [
+        "storage_gb"
+      ]
     },
     "expected_product_ids": [],
     "expect_empty": true,
@@ -459,7 +469,9 @@
       "category_id": "headphones",
       "brand": "Sony",
       "btu": 12000,
-      "required_filter_fields": ["btu"]
+      "required_filter_fields": [
+        "btu"
+      ]
     },
     "expected_product_ids": [],
     "expect_empty": true,
@@ -474,9 +486,15 @@
       "model": "iPhone Future 99"
     },
     "expected_product_ids": [
-      "prd_smartphones_001", "prd_smartphones_002", "prd_smartphones_003",
-      "prd_smartphones_004", "prd_smartphones_005", "prd_smartphones_006",
-      "prd_smartphones_007", "prd_smartphones_008", "prd_smartphones_009",
+      "prd_smartphones_001",
+      "prd_smartphones_002",
+      "prd_smartphones_003",
+      "prd_smartphones_004",
+      "prd_smartphones_005",
+      "prd_smartphones_006",
+      "prd_smartphones_007",
+      "prd_smartphones_008",
+      "prd_smartphones_009",
       "prd_smartphones_010"
     ],
     "expect_empty": false,
@@ -492,9 +510,16 @@
       "model": "iPad Future 99"
     },
     "expected_product_ids": [
-      "prd_tablets_001", "prd_tablets_002", "prd_tablets_003", "prd_tablets_004",
-      "prd_tablets_005", "prd_tablets_006", "prd_tablets_007", "prd_tablets_008",
-      "prd_tablets_009", "prd_tablets_010"
+      "prd_tablets_001",
+      "prd_tablets_002",
+      "prd_tablets_003",
+      "prd_tablets_004",
+      "prd_tablets_005",
+      "prd_tablets_006",
+      "prd_tablets_007",
+      "prd_tablets_008",
+      "prd_tablets_009",
+      "prd_tablets_010"
     ],
     "expect_empty": false,
     "expected_match_status": "alternatives",
@@ -509,9 +534,16 @@
       "model": "IdeaPad Future 99"
     },
     "expected_product_ids": [
-      "prd_laptops_001", "prd_laptops_002", "prd_laptops_003", "prd_laptops_004",
-      "prd_laptops_005", "prd_laptops_006", "prd_laptops_007", "prd_laptops_008",
-      "prd_laptops_009", "prd_laptops_010"
+      "prd_laptops_001",
+      "prd_laptops_002",
+      "prd_laptops_003",
+      "prd_laptops_004",
+      "prd_laptops_005",
+      "prd_laptops_006",
+      "prd_laptops_007",
+      "prd_laptops_008",
+      "prd_laptops_009",
+      "prd_laptops_010"
     ],
     "expect_empty": false,
     "expected_match_status": "alternatives",
@@ -526,9 +558,15 @@
       "model": "LG Inverter Split Future 99"
     },
     "expected_product_ids": [
-      "prd_air_conditioners_001", "prd_air_conditioners_002", "prd_air_conditioners_003",
-      "prd_air_conditioners_004", "prd_air_conditioners_005", "prd_air_conditioners_006",
-      "prd_air_conditioners_007", "prd_air_conditioners_008", "prd_air_conditioners_009",
+      "prd_air_conditioners_001",
+      "prd_air_conditioners_002",
+      "prd_air_conditioners_003",
+      "prd_air_conditioners_004",
+      "prd_air_conditioners_005",
+      "prd_air_conditioners_006",
+      "prd_air_conditioners_007",
+      "prd_air_conditioners_008",
+      "prd_air_conditioners_009",
       "prd_air_conditioners_010"
     ],
     "expect_empty": false,
@@ -544,9 +582,15 @@
       "model": "Samsung TV Future 99"
     },
     "expected_product_ids": [
-      "prd_televisions_001", "prd_televisions_002", "prd_televisions_003",
-      "prd_televisions_004", "prd_televisions_005", "prd_televisions_006",
-      "prd_televisions_007", "prd_televisions_008", "prd_televisions_009",
+      "prd_televisions_001",
+      "prd_televisions_002",
+      "prd_televisions_003",
+      "prd_televisions_004",
+      "prd_televisions_005",
+      "prd_televisions_006",
+      "prd_televisions_007",
+      "prd_televisions_008",
+      "prd_televisions_009",
       "prd_televisions_010"
     ],
     "expect_empty": false,
@@ -562,9 +606,15 @@
       "model": "Sony Audio Future 99"
     },
     "expected_product_ids": [
-      "prd_headphones_001", "prd_headphones_002", "prd_headphones_003",
-      "prd_headphones_004", "prd_headphones_005", "prd_headphones_006",
-      "prd_headphones_007", "prd_headphones_008", "prd_headphones_009",
+      "prd_headphones_001",
+      "prd_headphones_002",
+      "prd_headphones_003",
+      "prd_headphones_004",
+      "prd_headphones_005",
+      "prd_headphones_006",
+      "prd_headphones_007",
+      "prd_headphones_008",
+      "prd_headphones_009",
       "prd_headphones_010"
     ],
     "expect_empty": false,

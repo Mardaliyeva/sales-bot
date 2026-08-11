@@ -18,6 +18,8 @@ from app.tools.schemas import (
     TEXT_ATTRIBUTE_FIELDS,
     AttributeFilter,
     ProductSearchArguments,
+    SemanticExpression,
+    SemanticPredicate,
 )
 
 DEFAULT_COLLECTION_NAME = "sales_bot_products_semantic_v2"
@@ -256,6 +258,7 @@ class QdrantProductStore:
         settings: Settings,
         *,
         timeout_seconds: float = 30.0,
+        collection_name: str | None = None,
     ) -> QdrantProductStore:
         if settings.qdrant_url is None or settings.qdrant_url == "YOUR_QDRANT_CLOUD_URL":
             raise VectorStoreError("QDRANT_URL konfiqurasiya edilməyib")
@@ -270,7 +273,7 @@ class QdrantProductStore:
             timeout=timeout_seconds,
             prefer_grpc=False,
         )
-        return cls(client, collection_name=settings.qdrant_collection_name)
+        return cls(client, collection_name=collection_name or settings.qdrant_collection_name)
 
     def close(self) -> None:
         self.client.close()
@@ -482,9 +485,94 @@ class QdrantProductStore:
                             match=models.MatchValue(value=normalize_text(value)),
                         )
                     )
+        must_not: list[models.Condition] = []
         if include_structured_filters:
             conditions.extend(QdrantProductStore._structured_conditions(args))
-        return models.Filter(must=conditions) if conditions else None
+            semantic_filter = QdrantProductStore._semantic_condition(
+                args.semantic_filter_expression
+            )
+            if semantic_filter is not None:
+                conditions.append(semantic_filter)
+            if args.excluded_product_ids and not include_identifiers:
+                must_not.append(
+                    models.FieldCondition(
+                        key="product_id",
+                        match=models.MatchAny(any=args.excluded_product_ids),
+                    )
+                )
+        return models.Filter(must=conditions, must_not=must_not) if conditions or must_not else None
+
+    @staticmethod
+    def _semantic_condition(expression: SemanticExpression | None) -> Any | None:
+        if expression is None:
+            return None
+        if expression.kind == "predicate":
+            predicate = expression.predicate
+            if predicate is None or predicate.strength != "hard":
+                return None
+            condition = QdrantProductStore._semantic_predicate_condition(predicate)
+            if predicate.operator in {"not_eq", "not_in"}:
+                return models.Filter(must_not=[condition])
+            return condition
+        if expression.kind in {"all_of", "any_of"}:
+            children = [
+                condition
+                for child in expression.expressions or []
+                if (condition := QdrantProductStore._semantic_condition(child)) is not None
+            ]
+            if not children:
+                return None
+            if expression.kind == "all_of":
+                return models.Filter(must=children)
+            return models.Filter(should=children)
+        if expression.kind == "not":
+            child = QdrantProductStore._semantic_condition(expression.expression)
+            return models.Filter(must_not=[child]) if child is not None else None
+        if expression.kind == "fallback":
+            return QdrantProductStore._semantic_condition(expression.primary)
+        return None
+
+    @staticmethod
+    def _semantic_predicate_condition(predicate: SemanticPredicate) -> models.FieldCondition:
+        field = predicate.field
+        value = predicate.value
+        key_mapping = {
+            "product_id": "product_id_normalized",
+            "sku": "sku_normalized",
+            "model": "model_normalized",
+            "brand": "brand_normalized",
+            "model_family": "model_family_normalized",
+            "price": "sale_price",
+            "stock_status": "in_stock",
+        }
+        key = key_mapping.get(field, field)
+        if field == "stock_status":
+            value = value == "in_stock" if isinstance(value, str) else bool(value)
+        numeric_fields = set(NUMERIC_ATTRIBUTE_FIELDS) | {
+            "price",
+            "sale_price",
+            "rating",
+            "warranty_months",
+        }
+        operator = predicate.operator
+        if operator in {"lt", "lte", "gt", "gte"}:
+            return models.FieldCondition(
+                key=key,
+                range=models.Range(**{operator: float(value)}),  # type: ignore[arg-type]
+            )
+        if field in numeric_fields and operator in {"eq", "not_eq"}:
+            numeric = float(value)  # type: ignore[arg-type]
+            return models.FieldCondition(key=key, range=models.Range(gte=numeric, lte=numeric))
+        values = value if isinstance(value, list) else [value]
+        normalized_fields = {"product_id", "sku", "model", "brand", "model_family"} | set(
+            TEXT_ATTRIBUTE_FIELDS
+        ) | set(LIST_ATTRIBUTE_FIELDS) | set(DIMENSION_ATTRIBUTE_FIELDS)
+        if field in normalized_fields:
+            key = key if key.endswith("_normalized") else f"{key}_normalized"
+            values = [normalize_text(str(item)) for item in values]
+        if operator in {"in", "not_in"}:
+            return models.FieldCondition(key=key, match=models.MatchAny(any=values))
+        return models.FieldCondition(key=key, match=models.MatchValue(value=values[0]))
 
     @staticmethod
     def _structured_conditions(args: ProductSearchArguments) -> list[models.Condition]:

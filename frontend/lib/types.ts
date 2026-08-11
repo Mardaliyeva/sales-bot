@@ -17,12 +17,14 @@ export type ProductCardItem = {
 
 export type ProductCardsPresentation = {
   type: "product_cards";
-  result_kind?: "matches" | "alternatives";
+  result_kind?: "matches" | "alternatives" | "exact_conflict" | "comparison";
   requested_label?: string | null;
   title: string;
   total: number;
   shown_count: number;
-  recommended_product_id: string;
+  recommended_product_id: string | null;
+  requested_item?: ProductCardItem | null;
+  constraint_conflicts?: string[];
   relaxed_fields?: string[];
   items: ProductCardItem[];
 };
@@ -76,11 +78,12 @@ export type DebugDiagnosis = {
   title: string;
   detail: string;
   catalog_checked: boolean;
+  documents_checked?: boolean;
   data_status: string;
   result_count: number | null;
   error_type?: string | null;
   observed_outcome?: string;
-  match_status?: "exact_match" | "matching_products" | "alternatives" | "not_found";
+  match_status?: "exact_match" | "exact_conflict" | "matching_products" | "alternatives" | "clarification_required" | "found" | "not_found";
   strict_total?: number;
   relaxed_fields?: string[];
 };
@@ -102,6 +105,7 @@ export type DebugRetrieval = {
   filters: Record<string, unknown>;
   sort: string;
   qdrant_checked: boolean;
+  retrieval_executed?: boolean;
   filtered_count: number;
   exact_product_ids: string[];
   matching_exact_product_ids?: string[];
@@ -109,7 +113,13 @@ export type DebugRetrieval = {
   exact_candidates: DebugCandidate[];
   semantic_candidates: DebugCandidate[];
   semantic_state: string;
-  match_status?: "exact_match" | "matching_products" | "alternatives" | "not_found";
+  match_status?: "exact_match" | "exact_conflict" | "matching_products" | "alternatives" | "clarification_required" | "not_found";
+  original_arguments?: Record<string, unknown>;
+  canonical_arguments?: Record<string, unknown>;
+  argument_corrections?: Array<Record<string, unknown>>;
+  facet_mapping?: Array<Record<string, unknown>>;
+  unavailable_requested_values?: Array<Record<string, unknown>>;
+  constraint_conflicts?: string[];
   requested_label?: string | null;
   strict_total?: number;
   relaxed_fields?: string[];
@@ -124,6 +134,30 @@ export type DebugRetrieval = {
   hydrated_product_ids: string[];
   returned_product_ids: string[];
   total: number;
+};
+
+export type DebugDocumentCandidate = {
+  chunk_id: string;
+  document_id?: string | null;
+  filename?: string | null;
+  title?: string | null;
+  heading?: string | null;
+  score?: number;
+  selected?: boolean;
+  text_preview?: string;
+};
+
+export type DebugDocumentRetrieval = {
+  mode: "document_qdrant_v1";
+  query: string;
+  qdrant_checked: boolean;
+  semantic_state: string;
+  min_score?: number | null;
+  source_checksum?: string | null;
+  candidate_count: number;
+  selected_chunk_ids: string[];
+  candidates: DebugDocumentCandidate[];
+  error_type?: string | null;
 };
 
 export type DebugTimelineEvent = {
@@ -143,8 +177,42 @@ export type DebugTimelineEvent = {
     relaxed_fields?: string[];
     returned_products?: Array<{ product_id?: string; name?: string }>;
   };
-  retrieval?: DebugRetrieval | null;
+  retrieval?: DebugRetrieval | DebugDocumentRetrieval | null;
   [key: string]: unknown;
+};
+
+export type DebugDecisionExplanation = {
+  version: number;
+  basis: string;
+  summary: string;
+  narrative?: string;
+  understood_request: Record<string, unknown>;
+  context_used: Array<{
+    source: string;
+    detail: string;
+    memory_ids?: string[];
+    revision?: number;
+  }>;
+  decision_path: Array<{ code: string; status: string; detail: string }>;
+  evidence: Record<string, unknown>;
+  outcome: Record<string, unknown>;
+  memory_effect: DebugMemoryTransition;
+  limitations: string[];
+};
+
+export type DebugMemoryTransition = {
+  revision_before: number;
+  revision_after: number;
+  action: "preserve" | "replace" | "merge";
+  changed_ids: string[];
+  removed_ids: string[];
+  size_bytes: number;
+  context_source?: "confirmed" | "pending" | "none";
+  summary_replaced?: boolean;
+  summary_size_chars?: number;
+  cache_expires_at?: string | null;
+  confirmed_state_changed?: boolean;
+  pending_state_changed?: boolean;
 };
 
 export type DebugTraceResponse = {
@@ -160,4 +228,8 @@ export type DebugTraceResponse = {
   timeline: DebugTimelineEvent[];
   warnings: Array<{ code: string; detail: string }>;
   metrics: Record<string, number | string | null>;
+  decision_explanation?: DebugDecisionExplanation | null;
+  memory_transition?: DebugMemoryTransition | null;
+  continuation_context_before?: string | null;
+  continuation_context_after?: string | null;
 };

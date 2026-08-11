@@ -9,57 +9,68 @@ MAX_PRODUCT_CARDS = 3
 def build_product_cards(result: dict[str, Any] | None) -> dict[str, Any] | None:
     if not result or result.get("status") != "success":
         return None
+    if isinstance(result.get("clarification"), dict):
+        return None
 
     match_status = result.get("match_status")
     if match_status == "not_found":
         return None
 
     raw_items = result.get("items")
-    if not isinstance(raw_items, list) or not raw_items:
-        return None
-
-    display_items = [item for item in raw_items[:MAX_PRODUCT_CARDS] if isinstance(item, dict)]
-    if not display_items:
+    if not isinstance(raw_items, list):
+        raw_items = []
+    by_id = {
+        str(item.get("product_id")): item
+        for item in raw_items
+        if isinstance(item, dict) and item.get("product_id")
+    }
+    display_ids = result.get("display_product_ids")
+    if isinstance(display_ids, list) and display_ids:
+        display_items = [by_id[str(product_id)] for product_id in display_ids if str(product_id) in by_id]
+    else:
+        display_items = [item for item in raw_items[:MAX_PRODUCT_CARDS] if isinstance(item, dict)]
+    requested_raw = result.get("requested_item")
+    requested_item_raw = requested_raw if isinstance(requested_raw, dict) else None
+    if not display_items and requested_item_raw is None:
         return None
 
     filters = result.get("applied_filters")
     applied_filters = filters if isinstance(filters, dict) else {}
     max_price = _number(applied_filters.get("max_price"))
-    currency = str(display_items[0].get("currency") or "AZN")
+    currency_source = display_items[0] if display_items else requested_item_raw or {}
+    currency = str(currency_source.get("currency") or "AZN")
     total = _positive_int(result.get("total"), fallback=len(raw_items))
 
-    items: list[dict[str, Any]] = []
-    for item in display_items:
-        price = _number(item.get("sale_price"))
-        card = {
-            "product_id": str(item.get("product_id") or ""),
-            "name": str(item.get("name") or ""),
-            "sku": str(item.get("sku") or ""),
-            "price": price or 0.0,
-            "currency": str(item.get("currency") or currency),
-            "stock_status": str(item.get("stock_status") or "out_of_stock"),
-            "rating": _number(item.get("rating")) or 0.0,
-            "warranty_months": _positive_int(item.get("warranty_months"), fallback=0),
-            "highlights": product_highlights(
-                str(item.get("category_id") or ""),
-                item.get("attributes") if isinstance(item.get("attributes"), dict) else {},
-            ),
-            "differences": [
-                str(difference)
-                for difference in item.get("differences", [])
-                if isinstance(difference, str) and difference.strip()
-            ],
-        }
-        if max_price is not None and price is not None and max_price >= price:
-            card["budget_remaining"] = round(max_price - price, 2)
-        items.append(card)
-
-    if not items[0]["product_id"]:
+    items = [_card_from_item(item, currency=currency, max_price=max_price) for item in display_items]
+    items = [item for item in items if item["product_id"]]
+    requested_item = (
+        _card_from_item(requested_item_raw, currency=currency, max_price=max_price)
+        if requested_item_raw
+        else None
+    )
+    if not items and requested_item is None:
         return None
 
-    result_kind = "alternatives" if match_status == "alternatives" else "matches"
+    operation = result.get("operation")
+    result_kind = (
+        "comparison"
+        if operation == "compare"
+        else "exact_conflict"
+        if match_status == "exact_conflict"
+        else "alternatives"
+        if match_status == "alternatives"
+        else "matches"
+    )
     requested_label = str(result.get("requested_label") or "").strip() or None
-    if result_kind == "alternatives":
+    if result_kind == "comparison":
+        title = "Məhsulların müqayisəsi"
+    elif result_kind == "exact_conflict":
+        title = (
+            f"{requested_label} mövcuddur, lakin tələblə ziddiyyət var"
+            if requested_label
+            else "Dəqiq məhsul mövcuddur, lakin tələblə ziddiyyət var"
+        )
+    elif result_kind == "alternatives":
         title = (
             f"{requested_label} tapılmadı — yaxın alternativlər"
             if requested_label
@@ -70,6 +81,15 @@ def build_product_cards(result: dict[str, Any] | None) -> dict[str, Any] | None:
     else:
         title = f"{total} uyğun məhsul tapdım"
 
+    valid_ids = {item["product_id"] for item in items}
+    if requested_item:
+        valid_ids.add(requested_item["product_id"])
+    recommended_product_id = str(result.get("recommended_product_id") or "")
+    if result_kind == "comparison" and not recommended_product_id:
+        recommended_product_id = None
+    elif recommended_product_id not in valid_ids:
+        recommended_product_id = items[0]["product_id"] if items else requested_item["product_id"]
+
     return {
         "type": "product_cards",
         "result_kind": result_kind,
@@ -77,7 +97,13 @@ def build_product_cards(result: dict[str, Any] | None) -> dict[str, Any] | None:
         "title": title,
         "total": total,
         "shown_count": len(items),
-        "recommended_product_id": items[0]["product_id"],
+        "recommended_product_id": recommended_product_id,
+        "requested_item": requested_item,
+        "constraint_conflicts": [
+            str(conflict)
+            for conflict in result.get("constraint_conflicts", [])
+            if isinstance(conflict, str) and conflict.strip()
+        ],
         "relaxed_fields": [
             str(field)
             for field in result.get("relaxed_fields", [])
@@ -85,6 +111,37 @@ def build_product_cards(result: dict[str, Any] | None) -> dict[str, Any] | None:
         ],
         "items": items,
     }
+
+
+def _card_from_item(
+    item: dict[str, Any],
+    *,
+    currency: str,
+    max_price: float | None,
+) -> dict[str, Any]:
+    price = _number(item.get("sale_price"))
+    card = {
+        "product_id": str(item.get("product_id") or ""),
+        "name": str(item.get("name") or ""),
+        "sku": str(item.get("sku") or ""),
+        "price": price or 0.0,
+        "currency": str(item.get("currency") or currency),
+        "stock_status": str(item.get("stock_status") or "out_of_stock"),
+        "rating": _number(item.get("rating")) or 0.0,
+        "warranty_months": _positive_int(item.get("warranty_months"), fallback=0),
+        "highlights": product_highlights(
+            str(item.get("category_id") or ""),
+            item.get("attributes") if isinstance(item.get("attributes"), dict) else {},
+        ),
+        "differences": [
+            str(difference)
+            for difference in item.get("differences", [])
+            if isinstance(difference, str) and difference.strip()
+        ],
+    }
+    if max_price is not None and price is not None and max_price >= price:
+        card["budget_remaining"] = round(max_price - price, 2)
+    return card
 
 
 def product_highlights(category_id: str, attributes: dict[str, Any]) -> list[str]:

@@ -15,6 +15,10 @@ import { useEffect, useMemo, useState } from "react";
 
 import type {
   DebugCandidate,
+  DebugDecisionExplanation,
+  DebugDocumentCandidate,
+  DebugDocumentRetrieval,
+  DebugMemoryTransition,
   DebugRetrieval,
   DebugTimelineEvent,
   DebugTraceResponse,
@@ -33,9 +37,11 @@ const STAGE_LABELS: Record<string, string> = {
   context_build: "Söhbət konteksti hazırlandı",
   model_round: "Azure model mərhələsi",
   product_search: "Məhsul axtarışı",
+  document_search: "Sənəd axtarışı",
   final_answer: "Yekun cavab",
   run_error: "Run xətası",
   legacy_run_summary: "Köhnə run məlumatı",
+  session_memory_update: "Sessiya yaddaşı yeniləndi",
 };
 
 function displayValue(value: unknown): string {
@@ -111,8 +117,73 @@ function timelineDetail(event: DebugTimelineEvent): string {
       ? `Axtarış tamamlandı${typeof total === "number" ? `, total ${total}` : ""}`
       : `Axtarış xətası: ${event.result?.code || "naməlum"}`;
   }
+  if (event.stage === "document_search") {
+    const total = event.result?.total;
+    return event.status === "completed"
+      ? `Sənəd axtarışı tamamlandı${typeof total === "number" ? `, total ${total}` : ""}`
+      : `Sənəd axtarışı xətası: ${event.result?.code || "naməlum"}`;
+  }
   if (typeof event.detail === "string") return event.detail;
   return event.status === "completed" ? "Tamamlandı" : event.status;
+}
+
+function DocumentCandidateList({ candidates }: { candidates: DebugDocumentCandidate[] }) {
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? candidates.slice(0, 20) : candidates.slice(0, 10);
+  return (
+    <>
+      <ol className="debug-candidate-list">
+        {visible.map((candidate, index) => (
+          <li key={`${candidate.chunk_id}-${index}`}>
+            <span className="candidate-rank">#{index + 1}</span>
+            <span className="candidate-content">
+              <strong>{candidate.title || candidate.document_id || candidate.chunk_id}</strong>
+              <code>{candidate.filename || candidate.chunk_id}</code>
+              <small>
+                {candidate.heading || "Başlıq yoxdur"} · score {formatScore(candidate.score)}
+                {candidate.selected ? " · modelə seçilib" : ""}
+              </small>
+              {candidate.text_preview ? <p>{candidate.text_preview}</p> : null}
+            </span>
+          </li>
+        ))}
+      </ol>
+      {!visible.length ? <p className="debug-empty-line">Sənəd namizədi yoxdur.</p> : null}
+      {candidates.length > 10 ? (
+        <button className="debug-show-all" type="button" onClick={() => setShowAll((value) => !value)}>
+          <ChevronDown className={showAll ? "expanded" : ""} size={16} aria-hidden="true" />
+          {showAll ? "İlk 10-u göstər" : "20 sənəd hissəsinə qədər göstər"}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function DocumentRetrievalDetails({ retrieval }: { retrieval: DebugDocumentRetrieval }) {
+  return (
+    <section className="debug-section">
+      <div className="debug-section-heading">
+        <Search size={17} aria-hidden="true" />
+        <h3>Document retrieval nəticələri</h3>
+      </div>
+      <dl className="debug-kv-grid">
+        <div><dt>Rejim</dt><dd>{retrieval.mode}</dd></div>
+        <div><dt>Semantic vəziyyət</dt><dd>{retrieval.semantic_state}</dd></div>
+        <div><dt>Qdrant yoxlanılıb</dt><dd>{retrieval.qdrant_checked ? "bəli" : "xeyr"}</dd></div>
+        <div><dt>Namizəd sayı</dt><dd>{retrieval.candidate_count}</dd></div>
+        <div><dt>Seçilmiş chunk</dt><dd>{retrieval.selected_chunk_ids.length}</dd></div>
+        <div><dt>Minimum score</dt><dd>{formatScore(retrieval.min_score)}</dd></div>
+      </dl>
+      <div className="debug-code-block">
+        <span>Tool sorğusu</span>
+        <code>{retrieval.query}</code>
+      </div>
+      {retrieval.error_type ? (
+        <div className="debug-warning"><AlertTriangle size={16} />{retrieval.error_type}</div>
+      ) : null}
+      <DocumentCandidateList candidates={retrieval.candidates ?? []} />
+    </section>
+  );
 }
 
 function RetrievalDetails({ retrieval }: { retrieval: DebugRetrieval }) {
@@ -181,11 +252,100 @@ function RetrievalDetails({ retrieval }: { retrieval: DebugRetrieval }) {
   );
 }
 
+function DecisionExplanationDetails({
+  explanation,
+  transition,
+}: {
+  explanation: DebugDecisionExplanation;
+  transition: DebugMemoryTransition | null;
+}) {
+  const memory = transition ?? explanation.memory_effect;
+  return (
+    <section className="debug-section">
+      <div className="debug-section-heading">
+        <Route size={17} aria-hidden="true" />
+        <h3>Cavabın əsaslandırması</h3>
+      </div>
+      <div className="debug-warning">
+        Bu bölmə modelin gizli düşüncəsi deyil; yoxlanılmış plan, mənbə və runtime qərarlarının xülasəsidir.
+      </div>
+      <p>{explanation.narrative ?? explanation.summary}</p>
+      <details className="debug-code-block">
+        <summary>Texniki detallar</summary>
+      <dl className="debug-kv-grid">
+        <div><dt>Əsas</dt><dd>{explanation.basis}</dd></div>
+        <div><dt>Memory action</dt><dd>{memory.action}</dd></div>
+        <div><dt>Revision</dt><dd>{memory.revision_before} → {memory.revision_after}</dd></div>
+        <div><dt>Memory ölçüsü</dt><dd>{memory.size_bytes} bayt</dd></div>
+      </dl>
+      <div className="debug-candidate-group">
+        <div className="debug-section-heading compact"><span>İstifadə olunan kontekst</span></div>
+        <ol className="debug-candidate-list">
+          {explanation.context_used.map((item, index) => (
+            <li key={`${item.source}-${index}`}>
+              <span className="candidate-rank">#{index + 1}</span>
+              <span className="candidate-content">
+                <strong>{item.source}</strong>
+                <small>{item.detail}</small>
+                {item.memory_ids?.length ? <code>{item.memory_ids.join(", ")}</code> : null}
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="debug-candidate-group">
+        <div className="debug-section-heading compact"><span>Qərar yolu</span></div>
+        <ol className="debug-candidate-list">
+          {explanation.decision_path.map((item, index) => (
+            <li key={`${item.code}-${index}`}>
+              <span className="candidate-rank">#{index + 1}</span>
+              <span className="candidate-content">
+                <strong>{item.code}</strong>
+                <small>{item.status} · {item.detail}</small>
+              </span>
+            </li>
+          ))}
+        </ol>
+      </div>
+      <details className="debug-code-block">
+        <summary>Sorğunun strukturlaşdırılmış mənası</summary>
+        <pre>{JSON.stringify(explanation.understood_request, null, 2)}</pre>
+      </details>
+      <details className="debug-code-block">
+        <summary>Sübutlar və nəticə</summary>
+        <pre>{JSON.stringify({ evidence: explanation.evidence, outcome: explanation.outcome }, null, 2)}</pre>
+      </details>
+      <details className="debug-code-block">
+        <summary>Yaddaş fərqi</summary>
+        <pre>{JSON.stringify(memory, null, 2)}</pre>
+      </details>
+      </details>
+      {explanation.limitations.length ? (
+        <div className="debug-warning">
+          <AlertTriangle size={16} aria-hidden="true" />
+          {explanation.limitations.join(" ")}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 export function DebugDrawer({ open, trace, loading, error, onClose }: DebugDrawerProps) {
   const [copiedRequestId, setCopiedRequestId] = useState(false);
   const [copiedTrace, setCopiedTrace] = useState(false);
-  const retrieval = useMemo(
-    () => trace?.timeline.find((event) => event.retrieval)?.retrieval || null,
+  const productRetrieval = useMemo(
+    () => (
+      trace?.timeline.find(
+        (event) => event.retrieval && event.retrieval.mode !== "document_qdrant_v1",
+      )?.retrieval as DebugRetrieval | undefined
+    ) ?? null,
+    [trace],
+  );
+  const documentRetrieval = useMemo(
+    () => (
+      trace?.timeline.find((event) => event.retrieval?.mode === "document_qdrant_v1")
+        ?.retrieval as DebugDocumentRetrieval | undefined
+    ) ?? null,
     [trace],
   );
 
@@ -259,6 +419,46 @@ export function DebugDrawer({ open, trace, loading, error, onClose }: DebugDrawe
                 </div>
               </section>
 
+              {trace.decision_explanation ? (
+                <DecisionExplanationDetails
+                  explanation={trace.decision_explanation}
+                  transition={trace.memory_transition ?? null}
+                />
+              ) : (
+                <section className="debug-section">
+                  <div className="debug-section-heading"><Route size={17} /><h3>Cavabın əsaslandırması</h3></div>
+                  <p className="debug-empty-line">Bu run üçün əsaslandırma mövcud deyil.</p>
+                </section>
+              )}
+
+              {trace.continuation_context_after ? (
+                <section className="debug-section">
+                  <div className="debug-section-heading">
+                    <Route size={17} aria-hidden="true" />
+                    <h3>Sonrakı mesaj üçün söhbət konteksti</h3>
+                  </div>
+                  <div className="debug-warning">
+                    Bu mətn modelin gizli düşüncəsi deyil; yoxlanılmış sessiya vəziyyətinin qısa xülasəsidir.
+                  </div>
+                  <p>{trace.continuation_context_after}</p>
+                  {trace.continuation_context_before &&
+                  trace.continuation_context_before !== trace.continuation_context_after ? (
+                    <details className="debug-code-block">
+                      <summary>Əvvəlki kontekst</summary>
+                      <p>{trace.continuation_context_before}</p>
+                    </details>
+                  ) : null}
+                  {trace.memory_transition ? (
+                    <dl className="debug-kv-grid">
+                      <div><dt>Mənbə</dt><dd>{trace.memory_transition.context_source ?? "none"}</dd></div>
+                      <div><dt>Simvol sayı</dt><dd>{trace.memory_transition.summary_size_chars ?? 0}</dd></div>
+                      <div><dt>Əvəz edildi</dt><dd>{trace.memory_transition.summary_replaced ? "bəli" : "xeyr"}</dd></div>
+                      <div><dt>Cache bitmə vaxtı</dt><dd>{trace.memory_transition.cache_expires_at ?? "—"}</dd></div>
+                    </dl>
+                  ) : null}
+                </section>
+              ) : null}
+
               <section className="debug-section">
                 <div className="debug-section-heading"><Database size={17} /><h3>Məlumat mənbələri</h3></div>
                 <div className="debug-source-list">
@@ -267,6 +467,8 @@ export function DebugDrawer({ open, trace, loading, error, onClose }: DebugDrawe
                       <strong>{name}</strong>
                       <span>{source.configured ? "aktiv" : "mövcud deyil"}</span>
                       {typeof source.product_count === "number" ? <small>{source.product_count} məhsul</small> : null}
+                      {typeof source.document_count === "number" ? <small>{source.document_count} sənəd</small> : null}
+                      {typeof source.chunk_count === "number" ? <small>{source.chunk_count} chunk</small> : null}
                       {typeof source.detail === "string" ? <small>{source.detail}</small> : null}
                     </div>
                   ))}
@@ -285,7 +487,8 @@ export function DebugDrawer({ open, trace, loading, error, onClose }: DebugDrawe
                 </ol>
               </section>
 
-              {retrieval ? <RetrievalDetails retrieval={retrieval} /> : null}
+              {productRetrieval ? <RetrievalDetails retrieval={productRetrieval} /> : null}
+              {documentRetrieval ? <DocumentRetrievalDetails retrieval={documentRetrieval} /> : null}
 
               {trace.warnings.length ? (
                 <section className="debug-section">

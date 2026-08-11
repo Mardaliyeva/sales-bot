@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from app.catalog_generation import check_catalog
 from app.tools.catalog import CatalogLoadError, ProductCatalog
 from app.tools.schemas import AttributeFilter, ProductSearchArguments
 
@@ -20,6 +21,10 @@ def test_catalog_loads_canonical_dataset(catalog: ProductCatalog) -> None:
     assert catalog.ready is True
     assert len(catalog.products) == 300
     assert catalog.manifest["validation"]["status"] == "passed"
+
+
+def test_all_generated_records_have_consistent_encoded_attributes() -> None:
+    assert check_catalog() == []
 
 
 def test_catalog_hydrates_qdrant_ids_in_the_same_order(catalog: ProductCatalog) -> None:
@@ -51,3 +56,88 @@ def test_applied_filters_are_json_serializable(catalog: ProductCatalog) -> None:
 def test_catalog_has_no_runtime_search_or_ranking_methods(catalog: ProductCatalog) -> None:
     assert not hasattr(catalog, "search")
     assert not hasattr(catalog, "rank_candidates")
+
+
+def test_catalog_canonicalizes_unique_model_prefix_and_text_attribute(
+    catalog: ProductCatalog,
+) -> None:
+    args = ProductSearchArguments(
+        query="Samsung QN900D Neo QLED 8K televizoru",
+        category_id="televisions",
+        model="QN900D",
+        attribute_filters=[
+            AttributeFilter(field="resolution", operator="eq", value="4K")
+        ],
+    )
+
+    canonical = catalog.canonicalize_search_arguments(args)
+
+    assert canonical.arguments.model == "QN900D Neo QLED 8K"
+    assert canonical.arguments.attribute_filters[0].value == "4K UHD"
+    assert {item["field"] for item in canonical.corrections} == {
+        "model",
+        "attributes.resolution",
+    }
+
+
+def test_query_facet_does_not_turn_discovery_into_exact_lookup(catalog: ProductCatalog) -> None:
+    args = ProductSearchArguments(
+        query="Apple iPhone 17 Pro modeli",
+        category_id="smartphones",
+        brand="Apple",
+        model_family="iPhone",
+    )
+
+    canonical = catalog.canonicalize_search_arguments(args)
+
+    assert canonical.arguments.model is None
+
+
+def test_legacy_catalog_does_not_infer_model_from_natural_language(
+    catalog: ProductCatalog,
+) -> None:
+    args = ProductSearchArguments(
+        query="Samsung QN900D Neo QLED 8K 500 AZN-dən ucuz olmalıdır",
+        category_id="televisions",
+        max_price=500,
+    )
+
+    canonical = catalog.canonicalize_search_arguments(args)
+
+    assert canonical.arguments.model is None
+
+
+def test_legacy_lookup_drops_unmapped_preference_without_inventing_model(
+    catalog: ProductCatalog,
+) -> None:
+    args = ProductSearchArguments(
+        query="Samsung WindFree Elite 12K BTU və Wi-Fi məlumatını de",
+        search_intent="lookup",
+        requested_fields=["btu", "wifi"],
+        category_id="air_conditioners",
+        brand="Samsung",
+        model_family="WindFree Elite",
+    )
+
+    canonical = catalog.canonicalize_search_arguments(args)
+
+    assert canonical.arguments.model is None
+    assert canonical.arguments.model_family is None
+    assert any(
+        item["action"] == "removed_unmapped_preference_filter"
+        for item in canonical.corrections
+    )
+
+
+def test_legacy_catalog_does_not_parse_currency_language_into_constraint(
+    catalog: ProductCatalog,
+) -> None:
+    args = ProductSearchArguments(
+        query="Samsung QN900D Neo QLED 8K 500 AZN-dən ucuz olmalıdır",
+        category_id="televisions",
+    )
+
+    canonical = catalog.canonicalize_search_arguments(args)
+
+    assert canonical.arguments.max_price is None
+    assert canonical.arguments.model is None

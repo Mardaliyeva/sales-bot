@@ -148,7 +148,9 @@
     "filters": {
       "category_id": "smartphones",
       "brand": "SyntheticMissingBrand",
-      "required_filter_fields": ["brand"]
+      "required_filter_fields": [
+        "brand"
+      ]
     },
     "expected_product_ids": []
   },
@@ -273,7 +275,9 @@
     "filters": {
       "category_id": "tablets",
       "brand": "SyntheticMissingBrand",
-      "required_filter_fields": ["brand"]
+      "required_filter_fields": [
+        "brand"
+      ]
     },
     "expected_product_ids": []
   },
@@ -397,7 +401,9 @@
     "filters": {
       "category_id": "laptops",
       "brand": "SyntheticMissingBrand",
-      "required_filter_fields": ["brand"]
+      "required_filter_fields": [
+        "brand"
+      ]
     },
     "expected_product_ids": []
   },
@@ -413,8 +419,8 @@
       "btu": 12000
     },
     "expected_product_ids": [
-      "prd_air_conditioners_001",
-      "prd_air_conditioners_004",
+      "prd_air_conditioners_002",
+      "prd_air_conditioners_008",
       "prd_air_conditioners_010"
     ]
   },
@@ -520,7 +526,9 @@
     "filters": {
       "category_id": "air_conditioners",
       "brand": "SyntheticMissingBrand",
-      "required_filter_fields": ["brand"]
+      "required_filter_fields": [
+        "brand"
+      ]
     },
     "expected_product_ids": []
   },
@@ -649,7 +657,9 @@
     "filters": {
       "category_id": "televisions",
       "brand": "SyntheticMissingBrand",
-      "required_filter_fields": ["brand"]
+      "required_filter_fields": [
+        "brand"
+      ]
     },
     "expected_product_ids": []
   },
@@ -779,7 +789,9 @@
     "filters": {
       "category_id": "headphones",
       "brand": "SyntheticMissingBrand",
-      "required_filter_fields": ["brand"]
+      "required_filter_fields": [
+        "brand"
+      ]
     },
     "expected_product_ids": []
   }

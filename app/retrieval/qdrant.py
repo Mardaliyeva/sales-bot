@@ -7,18 +7,34 @@ from dataclasses import dataclass
 from typing import Any, Protocol
 
 from app.embeddings.azure import DEFAULT_TEXT_VERSION
+from app.retrieval.semantic_plan import (
+    SemanticPlanValidationError,
+    compile_semantic_plan,
+    expression_matches,
+    iter_predicates,
+    preference_score,
+)
 from app.tools.catalog import CatalogLoadError, ProductCatalog, normalize_text
 from app.tools.product_search import ProductSearchBackendError
-from app.tools.schemas import AttributeFilter, MatchStatus, ProductSearchArguments, ProductSearchResult
+from app.tools.schemas import (
+    AttributeFilter,
+    MatchStatus,
+    ProductQueryPlan,
+    ProductSearchArguments,
+    ProductSearchResult,
+)
 from app.vectorstores.qdrant import (
     DEFAULT_QUERY_CANDIDATES,
     DEFAULT_SORT_CANDIDATES,
+    QdrantProductStore,
     VectorSearchHit,
 )
 
 logger = logging.getLogger(__name__)
 ALTERNATIVE_LIMIT = 3
 DEFAULT_ALTERNATIVE_MIN_SCORE = 0.39
+DEFAULT_ENTITY_RESOLUTION_MIN_SCORE = 0.62
+DEFAULT_ENTITY_RESOLUTION_MARGIN = 0.06
 VISUAL_PREFERENCE_FIELDS = ("color_code",)
 TECHNICAL_PREFERENCE_FIELDS = (
     "min_price",
@@ -89,6 +105,8 @@ class QdrantProductSearch:
         relevance_candidate_limit: int = DEFAULT_QUERY_CANDIDATES,
         sort_candidate_limit: int = DEFAULT_SORT_CANDIDATES,
         alternative_min_score: float = DEFAULT_ALTERNATIVE_MIN_SCORE,
+        entity_resolution_min_score: float = DEFAULT_ENTITY_RESOLUTION_MIN_SCORE,
+        entity_resolution_margin: float = DEFAULT_ENTITY_RESOLUTION_MARGIN,
     ) -> None:
         if not catalog.ready:
             raise ValueError("Qdrant axtarışı üçün kataloq əvvəlcədən yüklənməlidir")
@@ -98,23 +116,557 @@ class QdrantProductSearch:
             raise ValueError("Qdrant namizəd limitləri müsbət olmalıdır")
         if not 0 <= alternative_min_score <= 1:
             raise ValueError("Alternativ semantic score həddi 0 və 1 arasında olmalıdır")
+        if not 0 <= entity_resolution_min_score <= 1:
+            raise ValueError("Entity resolution score həddi 0 və 1 arasında olmalıdır")
+        if not 0 <= entity_resolution_margin <= 1:
+            raise ValueError("Entity resolution margin 0 və 1 arasında olmalıdır")
         self.catalog = catalog
         self.embeddings = embeddings
         self.store = store
         self.relevance_candidate_limit = relevance_candidate_limit
         self.sort_candidate_limit = sort_candidate_limit
         self.alternative_min_score = alternative_min_score
+        self.entity_resolution_min_score = entity_resolution_min_score
+        self.entity_resolution_margin = entity_resolution_margin
 
     @property
     def semantic_enabled(self) -> bool:
         return self.embeddings is not None and self.store is not None
 
-    def search(self, args: ProductSearchArguments) -> ProductSearchResult:
+    def search(self, args: ProductSearchArguments | ProductQueryPlan) -> ProductSearchResult:
         return self.search_with_trace(args).result
 
-    def search_with_trace(self, args: ProductSearchArguments) -> QdrantSearchExecution:
+    def search_with_trace(
+        self,
+        args: ProductSearchArguments | ProductQueryPlan,
+    ) -> QdrantSearchExecution:
+        if isinstance(args, ProductQueryPlan):
+            return self._search_semantic_plan(args)
+        return self._search_flat_with_trace(args)
+
+    def _search_semantic_plan(self, plan: ProductQueryPlan) -> QdrantSearchExecution:
+        try:
+            compilation = compile_semantic_plan(plan, self.catalog)
+        except SemanticPlanValidationError as exc:
+            return self._semantic_clarification(
+                plan,
+                canonical_hash=None,
+                clarification={
+                    "reason": "semantic_plan_invalid",
+                    "question": "Sorğunu bir qədər dəqiqləşdirə bilərsiniz?",
+                    "detail": str(exc),
+                },
+                trace={"validation_error": str(exc)},
+            )
+        semantic_resolution_trace: list[dict[str, Any]] = []
+        if compilation.clarification is None and self.semantic_enabled:
+            try:
+                overrides, semantic_resolution_trace, ambiguous_entity_ids = (
+                    self._semantic_entity_resolution(compilation)
+                )
+            except Exception as exc:
+                fallback_arguments = (
+                    compilation.arguments[0]
+                    if compilation.arguments
+                    else ProductSearchArguments(query=plan.query)
+                )
+                raise self._unavailable(
+                    fallback_arguments,
+                    "entity_resolution_failed",
+                    exc,
+                ) from exc
+            if ambiguous_entity_ids:
+                clarification = {
+                    "reason": "ambiguous_entity",
+                    "question": "Hansı dəqiq məhsulu nəzərdə tutursunuz?",
+                    "entity_ids": ambiguous_entity_ids,
+                }
+                return self._semantic_clarification(
+                    plan,
+                    canonical_hash=compilation.canonical_hash,
+                    clarification=clarification,
+                    trace={
+                        "mode": "semantic_plan_v1",
+                        "raw_semantic_plan": plan.model_dump(mode="json"),
+                        "canonical_semantic_plan": compilation.canonical_plan,
+                        "canonical_query_hash": compilation.canonical_hash,
+                        "evidence_validation": compilation.evidence_validation,
+                        "facet_mapping": list(compilation.facet_mapping),
+                        "semantic_entity_candidates": semantic_resolution_trace,
+                    },
+                )
+            if overrides:
+                compilation = compile_semantic_plan(
+                    plan,
+                    self.catalog,
+                    resolution_overrides=overrides,
+                )
+        semantic_trace: dict[str, Any] = {
+            "mode": "semantic_plan_v1",
+            "raw_semantic_plan": plan.model_dump(mode="json"),
+            "canonical_semantic_plan": compilation.canonical_plan,
+            "canonical_query_hash": compilation.canonical_hash,
+            "evidence_validation": compilation.evidence_validation,
+            "resolved_entities": [self._resolution_trace(item) for item in compilation.resolutions],
+            "entity_candidates": [self._resolution_trace(item) for item in compilation.resolutions],
+            "semantic_entity_candidates": semantic_resolution_trace,
+            "facet_mapping": list(compilation.facet_mapping),
+            "unavailable_requested_values": list(
+                compilation.unavailable_requested_values
+            ),
+            "retrieval_executed": False,
+            "ambiguity_reason": (
+                compilation.clarification.get("reason") if compilation.clarification else None
+            ),
+        }
+        if compilation.clarification:
+            return self._semantic_clarification(
+                plan,
+                canonical_hash=compilation.canonical_hash,
+                clarification=compilation.clarification,
+                trace=semantic_trace,
+            )
+        if compilation.deterministic_empty:
+            return self._semantic_unavailable_match(plan, compilation, semantic_trace)
+        if plan.operation == "compare":
+            return self._execute_comparison(compilation, semantic_trace)
+
+        selected_execution: QdrantSearchExecution | None = None
+        branch_traces: list[dict[str, Any]] = []
+        for branch_index, arguments in enumerate(compilation.arguments, start=1):
+            execution = self._search_flat_with_trace(arguments)
+            branch_traces.append(
+                {
+                    "branch": branch_index,
+                    "compiled_expression": (
+                        arguments.semantic_filter_expression.model_dump(mode="json")
+                        if arguments.semantic_filter_expression
+                        else None
+                    ),
+                    "compiled_filter": self._compiled_filter_trace(arguments),
+                    "match_status": execution.result.match_status,
+                    "strict_total": execution.result.strict_total,
+                    "retrieval": execution.debug_trace,
+                }
+            )
+            selected_execution = execution
+            if execution.result.strict_total > 0 or execution.result.match_status in {
+                "exact_match",
+                "matching_products",
+            }:
+                break
+        if selected_execution is None:
+            return self._semantic_clarification(
+                plan,
+                canonical_hash=compilation.canonical_hash,
+                clarification={
+                    "reason": "semantic_plan_invalid",
+                    "question": "Sorğunu bir qədər dəqiqləşdirə bilərsiniz?",
+                },
+                trace=semantic_trace,
+            )
+        result = selected_execution.result
+        requested_id = result.requested_item.product_id if result.requested_item else None
+        if requested_id:
+            filtered_items = [item for item in result.items if item.product_id != requested_id]
+            if len(filtered_items) != len(result.items):
+                display_ids = [
+                    product_id
+                    for product_id in result.display_product_ids
+                    if product_id != requested_id
+                ]
+                result = result.model_copy(
+                    update={
+                        "items": filtered_items,
+                        "total": len(filtered_items),
+                        "display_product_ids": display_ids,
+                        "recommended_product_id": display_ids[0] if display_ids else requested_id,
+                    }
+                )
+        result = result.model_copy(
+            update={
+                "requested_label": next(
+                    (
+                        entity.raw_text
+                        for entity in reversed(plan.entities)
+                        if entity.state == "selected"
+                    ),
+                    result.requested_label,
+                ),
+                "operation": plan.operation,
+                "resolved_entities": [
+                    self._resolution_trace(item) for item in compilation.resolutions
+                ],
+                "entity_results": [
+                    {
+                        "entity_id": item.entity_id,
+                        "status": item.status,
+                        "product_id": item.product_id,
+                    }
+                    for item in compilation.resolutions
+                ],
+                "canonical_query_hash": compilation.canonical_hash,
+                "clarification": None,
+                "unavailable_requested_values": list(
+                    compilation.unavailable_requested_values
+                ),
+            }
+        )
+        semantic_trace["compiled_filter"] = branch_traces[-1]["compiled_filter"]
+        semantic_trace["fallback_branches"] = branch_traces
+        semantic_trace["selected_branch"] = len(branch_traces)
+        semantic_trace["match_status"] = result.match_status
+        semantic_trace["returned_product_ids"] = result.display_product_ids
+        flat_trace = selected_execution.debug_trace
+        semantic_trace.update(
+            {
+                "query": plan.query,
+                "sort": plan.sort,
+                "qdrant_checked": flat_trace.get("qdrant_checked", True),
+                "retrieval_executed": True,
+                "semantic_state": flat_trace.get("semantic_state"),
+                "filtered_count": flat_trace.get("filtered_count", 0),
+                "filters": branch_traces[-1]["compiled_filter"],
+                "exact_candidates": flat_trace.get("exact_candidates", []),
+                "exact_product_ids": flat_trace.get("exact_product_ids", []),
+                "matching_exact_product_ids": flat_trace.get(
+                    "matching_exact_product_ids", []
+                ),
+                "semantic_candidates": flat_trace.get("semantic_candidates", []),
+                "sorted_candidates": flat_trace.get("sorted_candidates", []),
+                "hydrated_product_ids": flat_trace.get("hydrated_product_ids", []),
+                "strict_total": result.strict_total,
+                "relaxed_fields": result.relaxed_fields,
+                "alternative_stages": flat_trace.get("alternative_stages", []),
+                "exact_filter_conflict": flat_trace.get("exact_filter_conflict", False),
+                "total": result.total,
+            }
+        )
+        return QdrantSearchExecution(result=result, debug_trace=semantic_trace)
+
+    @staticmethod
+    def _compiled_filter_trace(arguments: ProductSearchArguments) -> dict[str, Any] | None:
+        compiled = QdrantProductStore.build_filter(arguments)
+        return compiled.model_dump(mode="json", exclude_none=True) if compiled else None
+
+    def _semantic_entity_resolution(
+        self,
+        compilation: Any,
+    ) -> tuple[dict[str, str], list[dict[str, Any]], list[str]]:
         if self.embeddings is None or self.store is None:
-            trace = self._empty_trace(args, semantic_state="not_configured")
+            return {}, [], []
+        unresolved = [
+            resolution
+            for resolution in compilation.resolutions
+            if resolution.status == "unresolved"
+        ]
+        entity_by_id = {
+            entity.entity_id: entity
+            for entity in compilation.plan.entities
+            if entity.state == "selected"
+        }
+        overrides: dict[str, str] = {}
+        trace: list[dict[str, Any]] = []
+        ambiguous: list[str] = []
+        for resolution in unresolved:
+            entity = entity_by_id.get(resolution.entity_id)
+            if entity is None or entity.identifier_type != "auto":
+                trace.append(
+                    {
+                        "entity_id": resolution.entity_id,
+                        "raw_text": resolution.raw_text,
+                        "candidates": [],
+                        "decision": "exact_identifier_unresolved",
+                    }
+                )
+                continue
+            vectors = self.embeddings.embed(
+                [resolution.raw_text],
+                text_version=DEFAULT_TEXT_VERSION,
+            )
+            if len(vectors) != 1:
+                raise ValueError("Entity resolution üçün bir embedding tələb olunur")
+            arguments = ProductSearchArguments(
+                query=resolution.raw_text,
+                limit=3,
+            )
+            hits = self.store.search_candidates(
+                vectors[0],
+                arguments,
+                candidate_limit=5,
+            )
+            strong = [
+                hit for hit in hits if hit.score >= self.entity_resolution_min_score
+            ]
+            entry = {
+                "entity_id": resolution.entity_id,
+                "raw_text": resolution.raw_text,
+                "candidates": [
+                    {
+                        "product_id": hit.product_id,
+                        "score": hit.score,
+                        "name": hit.payload.get("name"),
+                    }
+                    for hit in hits
+                ],
+                "decision": "unresolved",
+            }
+            if strong:
+                runner_up = strong[1] if len(strong) > 1 else None
+                if (
+                    runner_up is not None
+                    and strong[0].score - runner_up.score < self.entity_resolution_margin
+                ):
+                    ambiguous.append(resolution.entity_id)
+                    entry["decision"] = "ambiguous"
+                else:
+                    overrides[resolution.entity_id] = strong[0].product_id
+                    entry["decision"] = "resolved"
+                    entry["product_id"] = strong[0].product_id
+            trace.append(entry)
+        return overrides, trace, ambiguous
+
+    def _execute_comparison(
+        self,
+        compilation: Any,
+        semantic_trace: dict[str, Any],
+    ) -> QdrantSearchExecution:
+        items = []
+        entity_results: list[dict[str, Any]] = []
+        retrievals: list[dict[str, Any]] = []
+        for resolution, arguments in zip(
+            compilation.resolutions,
+            compilation.arguments,
+            strict=True,
+        ):
+            if resolution.status != "resolved":
+                entity_results.append(
+                    {
+                        "entity_id": resolution.entity_id,
+                        "status": "not_found",
+                        "product_id": None,
+                    }
+                )
+                continue
+            execution = self._search_flat_with_trace(arguments)
+            retrievals.append(execution.debug_trace)
+            exact_item = execution.result.requested_item
+            if exact_item is None and execution.result.items:
+                exact_item = execution.result.items[0]
+            entity_results.append(
+                {
+                    "entity_id": resolution.entity_id,
+                    "status": execution.result.match_status,
+                    "product_id": exact_item.product_id if exact_item else None,
+                    "constraint_conflicts": execution.result.constraint_conflicts,
+                }
+            )
+            if exact_item and all(item.product_id != exact_item.product_id for item in items):
+                items.append(exact_item)
+        items = items[:3]
+        display_ids = [item.product_id for item in items]
+        all_resolved = bool(entity_results) and all(
+            item.get("product_id") for item in entity_results
+        )
+        result = ProductSearchResult(
+            match_status="exact_match" if all_resolved else "matching_products",
+            requested_label=" / ".join(
+                entity.raw_text
+                for entity in compilation.plan.entities
+                if entity.state == "selected"
+            )
+            or None,
+            strict_total=len(items),
+            total=len(items),
+            applied_filters={},
+            items=items,
+            recommended_product_id=(
+                display_ids[0]
+                if display_ids and compilation.plan.recommendation_requested
+                else None
+            ),
+            display_product_ids=display_ids,
+            operation="compare",
+            resolved_entities=[
+                self._resolution_trace(item) for item in compilation.resolutions
+            ],
+            entity_results=entity_results,
+            canonical_query_hash=compilation.canonical_hash,
+            unavailable_requested_values=list(
+                compilation.unavailable_requested_values
+            ),
+        )
+        semantic_trace["comparison_retrievals"] = retrievals
+        semantic_trace["entity_results"] = entity_results
+        semantic_trace["match_status"] = result.match_status
+        semantic_trace["returned_product_ids"] = display_ids
+        semantic_trace.update(
+            {
+                "query": compilation.plan.query,
+                "sort": compilation.plan.sort,
+                "qdrant_checked": True,
+                "retrieval_executed": True,
+                "semantic_state": "comparison",
+                "filtered_count": len(items),
+                "filters": {},
+                "exact_candidates": [],
+                "exact_product_ids": display_ids,
+                "matching_exact_product_ids": display_ids,
+                "semantic_candidates": [],
+                "sorted_candidates": [],
+                "hydrated_product_ids": display_ids,
+                "strict_total": len(items),
+                "relaxed_fields": [],
+                "alternative_stages": [],
+                "exact_filter_conflict": False,
+                "total": len(items),
+            }
+        )
+        return QdrantSearchExecution(result=result, debug_trace=semantic_trace)
+
+    def _semantic_unavailable_match(
+        self,
+        plan: ProductQueryPlan,
+        compilation: Any,
+        trace: dict[str, Any],
+    ) -> QdrantSearchExecution:
+        result = ProductSearchResult(
+            match_status="not_found",
+            requested_label=next(
+                (
+                    entity.raw_text
+                    for entity in reversed(plan.entities)
+                    if entity.state == "selected"
+                ),
+                None,
+            ),
+            strict_total=0,
+            total=0,
+            applied_filters={},
+            items=[],
+            operation=plan.operation,
+            resolved_entities=[
+                self._resolution_trace(item) for item in compilation.resolutions
+            ],
+            entity_results=[
+                {
+                    "entity_id": item.entity_id,
+                    "status": item.status,
+                    "product_id": item.product_id,
+                }
+                for item in compilation.resolutions
+            ],
+            canonical_query_hash=compilation.canonical_hash,
+            unavailable_requested_values=list(
+                compilation.unavailable_requested_values
+            ),
+        )
+        return QdrantSearchExecution(
+            result=result,
+            debug_trace={
+                **trace,
+                "query": plan.query,
+                "sort": plan.sort,
+                "qdrant_checked": False,
+                "retrieval_executed": False,
+                "retrieval_skipped_reason": "unavailable_required_value",
+                "semantic_state": "deterministic_not_found",
+                "match_status": "not_found",
+                "strict_total": 0,
+                "total": 0,
+                "returned_product_ids": [],
+            },
+        )
+
+    def _semantic_clarification(
+        self,
+        plan: ProductQueryPlan,
+        *,
+        canonical_hash: str | None,
+        clarification: dict[str, Any],
+        trace: dict[str, Any],
+    ) -> QdrantSearchExecution:
+        result = ProductSearchResult(
+            match_status="clarification_required",
+            strict_total=0,
+            total=0,
+            applied_filters={},
+            items=[],
+            operation=plan.operation,
+            canonical_query_hash=canonical_hash,
+            clarification=clarification,
+            unavailable_requested_values=list(
+                trace.get("unavailable_requested_values", [])
+            ),
+        )
+        return QdrantSearchExecution(
+            result=result,
+            debug_trace={
+                **trace,
+                "query": plan.query,
+                "sort": plan.sort,
+                "qdrant_checked": bool(trace.get("semantic_entity_candidates")),
+                "retrieval_executed": False,
+                "semantic_state": "clarification_required",
+                "filtered_count": 0,
+                "filters": {},
+                "exact_candidates": [],
+                "exact_product_ids": [],
+                "matching_exact_product_ids": [],
+                "semantic_candidates": [],
+                "sorted_candidates": [],
+                "hydrated_product_ids": [],
+                "strict_total": 0,
+                "relaxed_fields": [],
+                "alternative_stages": [],
+                "exact_filter_conflict": False,
+                "total": 0,
+                "semantic_plan_invalid": clarification.get("reason")
+                == "semantic_plan_invalid",
+                "clarification": clarification,
+                "match_status": "clarification_required",
+                "returned_product_ids": [],
+            },
+        )
+
+    @staticmethod
+    def _resolution_trace(resolution: Any) -> dict[str, Any]:
+        return {
+            "entity_id": resolution.entity_id,
+            "raw_text": resolution.raw_text,
+            "status": resolution.status,
+            "product_id": resolution.product_id,
+            "reason": resolution.reason,
+            "constraint_field": resolution.constraint_field,
+            "constraint_value": resolution.constraint_value,
+            "candidates": [
+                {
+                    "product_id": candidate.product_id,
+                    "score": candidate.score,
+                    "resolution": candidate.resolution,
+                }
+                for candidate in resolution.candidates
+            ],
+        }
+
+    def _search_flat_with_trace(self, args: ProductSearchArguments) -> QdrantSearchExecution:
+        original_args = args
+        if args.semantic_plan_compiled:
+            argument_corrections: list[dict[str, Any]] = []
+            facet_mapping: list[dict[str, Any]] = []
+        else:
+            canonical = self.catalog.canonicalize_search_arguments(args)
+            args = canonical.arguments
+            argument_corrections = list(canonical.corrections)
+            facet_mapping = canonical.facet_mapping
+        if self.embeddings is None or self.store is None:
+            trace = self._empty_trace(
+                args,
+                semantic_state="not_configured",
+                original_args=original_args,
+                argument_corrections=argument_corrections,
+                facet_mapping=facet_mapping,
+            )
             raise ProductSearchBackendError(
                 "product_search_unavailable",
                 "Məhsul axtarışı hazırda əlçatan deyil. Bir qədər sonra yenidən cəhd edin.",
@@ -135,7 +687,7 @@ class QdrantProductSearch:
             raise self._unavailable(args, "failed", exc) from exc
 
         if exact_filtered:
-            ordered_hits = self._sort_hits(exact_filtered, args.sort)
+            ordered_hits = self._sort_hits_for_args(exact_filtered, args)
             selected_hits = ordered_hits[: args.limit]
             products = self._hydrate(args, selected_hits, semantic_state="not_run_exact_match")
             result = self._result(
@@ -144,6 +696,7 @@ class QdrantProductSearch:
                 match_status="exact_match",
                 strict_total=len(exact_filtered),
                 total=len(exact_filtered),
+                argument_corrections=argument_corrections,
             )
             return QdrantSearchExecution(
                 result=result,
@@ -160,6 +713,79 @@ class QdrantProductSearch:
                     total=len(exact_filtered),
                     match_status="exact_match",
                     strict_total=len(exact_filtered),
+                    original_args=original_args,
+                    argument_corrections=argument_corrections,
+                    facet_mapping=facet_mapping,
+                ),
+            )
+
+        if exact_unfiltered:
+            exact_products = self._hydrate(
+                args,
+                exact_unfiltered[:1],
+                semantic_state="not_run_exact_conflict",
+            )
+            requested_product = exact_products[0]
+            conflicts = self._constraint_conflicts(args, requested_product)
+            try:
+                alternatives = self._search_alternatives(args)
+            except Exception as exc:
+                raise self._unavailable(args, "failed", exc, filtered_count=filtered_count) from exc
+            selected_hits = [hit for hit, _ in alternatives.selected]
+            alternative_products = self._hydrate(
+                args,
+                selected_hits,
+                semantic_state=alternatives.semantic_state,
+            )
+            differences = {
+                product["product_id"]: self._product_differences(args, product, relaxed_fields)
+                for product, (_, relaxed_fields) in zip(
+                    alternative_products,
+                    alternatives.selected,
+                    strict=True,
+                )
+            }
+            visible_relaxed = list(
+                dict.fromkeys(
+                    field
+                    for _, relaxed_fields in alternatives.selected
+                    for field in relaxed_fields
+                    if self._field_was_requested(args, field)
+                )
+            )
+            result = self._result(
+                args,
+                alternative_products,
+                match_status="exact_conflict",
+                strict_total=0,
+                total=len(alternative_products),
+                relaxed_fields=visible_relaxed,
+                differences=differences,
+                requested_item=requested_product,
+                constraint_conflicts=conflicts,
+                argument_corrections=argument_corrections,
+            )
+            return QdrantSearchExecution(
+                result=result,
+                debug_trace=self._trace(
+                    args,
+                    filtered_count=filtered_count,
+                    exact_unfiltered=exact_unfiltered,
+                    exact_filtered=[],
+                    semantic_hits=alternatives.semantic_hits,
+                    ordered_hits=selected_hits,
+                    hydrated_ids=[product["product_id"] for product in alternative_products],
+                    semantic_state=alternatives.semantic_state,
+                    exact_filter_conflict=True,
+                    total=len(alternative_products),
+                    match_status="exact_conflict",
+                    strict_total=0,
+                    relaxed_fields=visible_relaxed,
+                    alternative_stages=alternatives.stages,
+                    original_args=original_args,
+                    argument_corrections=argument_corrections,
+                    facet_mapping=facet_mapping,
+                    constraint_conflicts=conflicts,
                 ),
             )
 
@@ -179,7 +805,7 @@ class QdrantProductSearch:
             except Exception as exc:
                 raise self._unavailable(args, "failed", exc, filtered_count=filtered_count) from exc
 
-            ordered_hits = self._sort_hits(semantic_hits, args.sort)
+            ordered_hits = self._sort_hits_for_args(semantic_hits, args)
             selected_hits = ordered_hits[: args.limit]
             products = self._hydrate(args, selected_hits, semantic_state="active")
             match_status: MatchStatus = "matching_products" if products else "not_found"
@@ -189,6 +815,7 @@ class QdrantProductSearch:
                 match_status=match_status,
                 strict_total=filtered_count,
                 total=filtered_count if products else 0,
+                argument_corrections=argument_corrections,
             )
             logger.info(
                 "product_search.qdrant_completed",
@@ -215,6 +842,9 @@ class QdrantProductSearch:
                     total=filtered_count if products else 0,
                     match_status=match_status,
                     strict_total=filtered_count,
+                    original_args=original_args,
+                    argument_corrections=argument_corrections,
+                    facet_mapping=facet_mapping,
                 ),
             )
 
@@ -246,6 +876,7 @@ class QdrantProductSearch:
             total=len(products),
             relaxed_fields=visible_relaxed,
             differences=differences,
+            argument_corrections=argument_corrections,
         )
         logger.info(
             "product_search.qdrant_completed",
@@ -274,6 +905,9 @@ class QdrantProductSearch:
                 strict_total=0,
                 relaxed_fields=visible_relaxed,
                 alternative_stages=alternatives.stages,
+                original_args=original_args,
+                argument_corrections=argument_corrections,
+                facet_mapping=facet_mapping,
             ),
         )
 
@@ -335,7 +969,7 @@ class QdrantProductSearch:
                 previous = semantic_by_id.get(hit.product_id)
                 if previous is None or hit.score > previous.score:
                     semantic_by_id[hit.product_id] = hit
-            for hit in self._sort_hits(eligible, args.sort):
+            for hit in self._sort_hits_for_args(eligible, args):
                 if hit.product_id in selected_ids:
                     continue
                 selected.append((hit, relaxed_fields))
@@ -398,6 +1032,8 @@ class QdrantProductSearch:
             "model": None,
             "limit": min(args.limit, ALTERNATIVE_LIMIT),
         }
+        if args.semantic_plan_compiled:
+            return args.model_copy(update=updates)
         query_text = normalize_text(" ".join(value for value in (args.query, args.model) if value))
         products = [
             product
@@ -456,6 +1092,68 @@ class QdrantProductSearch:
             if difference and difference not in differences:
                 differences.append(difference)
         return differences
+
+    def _constraint_conflicts(
+        self,
+        args: ProductSearchArguments,
+        product: dict[str, Any],
+    ) -> list[str]:
+        conflicts: list[str] = []
+        if args.category_id and product.get("category", {}).get("id") != args.category_id:
+            conflicts.append(f"Kateqoriya fərqlidir: {product.get('category', {}).get('name')}")
+        if args.max_price is not None and float(product["price"]["sale"]) > args.max_price:
+            conflicts.append(f"Qiymət büdcəni keçir: {product['price']['sale']} AZN")
+        if args.min_price is not None and float(product["price"]["sale"]) < args.min_price:
+            conflicts.append(f"Qiymət minimumdan aşağıdır: {product['price']['sale']} AZN")
+        if args.in_stock is not None:
+            actual_in_stock = product.get("stock", {}).get("status") == "in_stock"
+            if actual_in_stock != args.in_stock:
+                conflicts.append(
+                    "Məhsul stokda deyil" if args.in_stock else "Məhsul stokdadır"
+                )
+        for field in (
+            "brand",
+            "model_family",
+            "color_code",
+            "storage_gb",
+            "ram_gb",
+            "btu",
+            "screen_size_in",
+            "connectivity",
+            "active_noise_cancellation",
+        ):
+            if getattr(args, field, None) is None or self._product_matches_field(args, product, field):
+                continue
+            difference = self._format_difference(product, field)
+            if difference and difference not in conflicts:
+                conflicts.append(difference)
+        for attribute_filter in args.attribute_filters:
+            actual = product.get("attributes", {}).get(attribute_filter.field)
+            if self._attribute_matches(attribute_filter, actual):
+                continue
+            difference = self._format_difference(product, attribute_filter.field)
+            if difference and difference not in conflicts:
+                conflicts.append(difference)
+        if args.semantic_filter_expression is not None and not expression_matches(
+            args.semantic_filter_expression, product
+        ):
+            semantic_conflict_count = len(conflicts)
+            for predicate in iter_predicates(args.semantic_filter_expression):
+                if predicate.strength != "hard":
+                    continue
+                single = predicate.model_copy()
+                expression = args.semantic_filter_expression.model_construct(
+                    kind="predicate",
+                    predicate=single,
+                )
+                if expression_matches(expression, product):
+                    continue
+                conflict = f"{predicate.field} şərti ödənmir"
+                if conflict not in conflicts:
+                    conflicts.append(conflict)
+            if len(conflicts) == semantic_conflict_count:
+                conflicts.append("Verilən sərt məntiqi şərt ödənmir")
+        return conflicts
 
     def _product_matches_field(
         self,
@@ -547,6 +1245,7 @@ class QdrantProductSearch:
                 "ready": self.catalog.ready,
                 "product_count": len(self.catalog.products),
                 "dataset_version": self.catalog.manifest.get("dataset_version"),
+                "catalog_checksum": self.catalog.manifest.get("checksums", {}).get("products_sha256"),
                 "categories": sorted(category_counts),
                 "role": "full_product_hydration",
             },
@@ -555,6 +1254,8 @@ class QdrantProductSearch:
                 "ready": self.semantic_enabled,
                 "collection": getattr(self.store, "collection_name", None),
                 "alternative_min_score": self.alternative_min_score,
+                "entity_resolution_min_score": self.entity_resolution_min_score,
+                "entity_resolution_margin": self.entity_resolution_margin,
                 "role": "exact_filters_and_semantic_candidates",
             },
             "documents": {
@@ -608,6 +1309,24 @@ class QdrantProductSearch:
             )
         return sorted(hits, key=lambda hit: (-hit.score, hit.product_id))
 
+    def _sort_hits_for_args(
+        self,
+        hits: Sequence[VectorSearchHit],
+        args: ProductSearchArguments,
+    ) -> list[VectorSearchHit]:
+        ordered = self._sort_hits(hits, args.sort)
+        if args.semantic_preference_expression is None:
+            return ordered
+        base_rank = {hit.product_id: rank for rank, hit in enumerate(ordered)}
+        return sorted(
+            ordered,
+            key=lambda hit: (
+                -preference_score(args.semantic_preference_expression, hit.payload),
+                base_rank[hit.product_id],
+                hit.product_id,
+            ),
+        )
+
     @staticmethod
     def _result(
         args: ProductSearchArguments,
@@ -618,6 +1337,9 @@ class QdrantProductSearch:
         total: int,
         relaxed_fields: Sequence[str] = (),
         differences: dict[str, list[str]] | None = None,
+        requested_item: dict[str, Any] | None = None,
+        constraint_conflicts: Sequence[str] = (),
+        argument_corrections: Sequence[dict[str, Any]] = (),
     ) -> ProductSearchResult:
         item_differences = differences or {}
         items = []
@@ -627,6 +1349,11 @@ class QdrantProductSearch:
             if product_differences:
                 item = item.model_copy(update={"differences": product_differences})
             items.append(item)
+        requested_result = ProductCatalog.to_result(requested_item) if requested_item else None
+        display_product_ids = [item.product_id for item in items[:ALTERNATIVE_LIMIT]]
+        recommended_product_id = display_product_ids[0] if display_product_ids else None
+        if recommended_product_id is None and requested_result is not None:
+            recommended_product_id = requested_result.product_id
         return ProductSearchResult(
             match_status=match_status,
             requested_label=QdrantProductSearch._requested_label(args),
@@ -635,6 +1362,11 @@ class QdrantProductSearch:
             applied_filters=ProductCatalog.applied_filters(args),
             relaxed_fields=list(relaxed_fields),
             items=items,
+            requested_item=requested_result,
+            constraint_conflicts=list(constraint_conflicts),
+            argument_corrections=list(argument_corrections),
+            recommended_product_id=recommended_product_id,
+            display_product_ids=display_product_ids,
         )
 
     @staticmethod
@@ -666,18 +1398,28 @@ class QdrantProductSearch:
         strict_total: int,
         relaxed_fields: Sequence[str] = (),
         alternative_stages: Sequence[dict[str, Any]] = (),
+        original_args: ProductSearchArguments | None = None,
+        argument_corrections: Sequence[dict[str, Any]] = (),
+        facet_mapping: Sequence[dict[str, Any]] = (),
+        constraint_conflicts: Sequence[str] = (),
     ) -> dict[str, Any]:
         selected_ids = set(hydrated_ids)
         return {
             "mode": "qdrant_only_v2",
             "query": args.query,
+            "original_arguments": (original_args or args).model_dump(mode="json"),
+            "canonical_arguments": args.model_dump(mode="json"),
+            "argument_corrections": list(argument_corrections),
+            "facet_mapping": list(facet_mapping),
             "filters": ProductCatalog.applied_filters(args),
             "sort": args.sort,
             "qdrant_checked": True,
+            "retrieval_executed": True,
             "filtered_count": filtered_count,
             "exact_product_ids": [hit.product_id for hit in exact_unfiltered],
             "matching_exact_product_ids": [hit.product_id for hit in exact_filtered],
             "exact_filter_conflict": exact_filter_conflict,
+            "constraint_conflicts": list(constraint_conflicts),
             "exact_candidates": [
                 self._candidate(hit, rank, selected=hit.product_id in selected_ids)
                 for rank, hit in enumerate(exact_filtered or exact_unfiltered, start=1)
@@ -707,6 +1449,9 @@ class QdrantProductSearch:
         *,
         semantic_state: str,
         filtered_count: int = 0,
+        original_args: ProductSearchArguments | None = None,
+        argument_corrections: Sequence[dict[str, Any]] = (),
+        facet_mapping: Sequence[dict[str, Any]] = (),
     ) -> dict[str, Any]:
         return self._trace(
             args,
@@ -721,6 +1466,9 @@ class QdrantProductSearch:
             total=0,
             match_status="not_found",
             strict_total=0,
+            original_args=original_args,
+            argument_corrections=argument_corrections,
+            facet_mapping=facet_mapping,
         )
 
     def _unavailable(

@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "encoded_attribute_rules": [
+    {
+      "category_id": "air_conditioners",
+      "source_field": "model",
+      "pattern": "(?<!\\w)(\\d{1,2})K(?!\\w)",
+      "target_attribute": "btu",
+      "transform": "multiply",
+      "factor": 1000
+    },
+    {
+      "category_id": "televisions",
+      "source_field": "model",
+      "pattern": "(?<!\\w)(4K|8K)(?!\\w)",
+      "target_attribute": "resolution",
+      "transform": "value_map",
+      "values": {
+        "4K": "4K UHD",
+        "8K": "8K UHD"
+      }
+    }
+  ]
+}

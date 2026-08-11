@@ -3,7 +3,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field, SecretStr, field_validator
+from pydantic import AliasChoices, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -19,7 +19,12 @@ class Settings(BaseSettings):
 
     app_env: str = "development"
     app_host: str = "127.0.0.1"
-    app_port: int = Field(default=8000, ge=1, le=65535)
+    app_port: int = Field(
+        default=8001,
+        ge=1,
+        le=65535,
+        validation_alias=AliasChoices("SALES_BOT_API_PORT", "APP_PORT"),
+    )
     log_level: str = "INFO"
     debug_panel_enabled: bool = False
 
@@ -34,12 +39,23 @@ class Settings(BaseSettings):
     qdrant_url: str | None = None
     qdrant_api_key: SecretStr | None = None
     qdrant_collection_name: str = Field(
-        default="sales_bot_products_semantic_v2",
+        default="sales_bot_products_active",
+        pattern=r"^[a-zA-Z0-9_-]{1,255}$",
+    )
+    qdrant_document_collection_name: str = Field(
+        default="sales_bot_documents_v1",
         pattern=r"^[a-zA-Z0-9_-]{1,255}$",
     )
     alternative_min_score: float = Field(default=0.39, ge=0, le=1)
+    entity_resolution_min_score: float = Field(default=0.62, ge=0, le=1)
+    entity_resolution_margin: float = Field(default=0.06, ge=0, le=1)
 
     product_catalog_path: Path = PROJECT_ROOT / "data" / "catalog" / "products.jsonl"
+    document_search_enabled: bool = False
+    documents_path: Path = PROJECT_ROOT / "data" / "documents" / "source"
+    document_baseline_path: Path = (
+        PROJECT_ROOT / "data" / "evals" / "baselines" / "document_qdrant_v1.json"
+    )
     mode_name: str = "ecommerce_assistant_v1"
     reasoning_effort: str = "low"
     max_tool_count: int = Field(default=3, ge=0, le=10)
@@ -47,8 +63,21 @@ class Settings(BaseSettings):
     max_output_tokens: int = Field(default=800, ge=64, le=4096)
     history_message_limit: int = Field(default=12, ge=2, le=50)
     session_ttl_hours: int = Field(default=168, ge=1, le=24 * 90)
+    session_context_scrub_interval_seconds: int = Field(default=900, ge=30, le=86400)
+    session_memory_context_enabled: bool | None = None
+    session_memory_max_bytes: int = Field(default=8192, ge=1024, le=32768)
     llm_timeout_seconds: float = Field(default=30, gt=0, le=120)
     tool_timeout_seconds: float = Field(default=10, gt=0, le=60)
+
+    @model_validator(mode="after")
+    def resolve_session_memory_context_default(self) -> Settings:
+        if self.session_memory_context_enabled is None:
+            self.session_memory_context_enabled = self.app_env.casefold() in {
+                "development",
+                "test",
+                "testing",
+            }
+        return self
 
     @field_validator("database_url", "test_database_url")
     @classmethod
@@ -108,9 +137,9 @@ class Settings(BaseSettings):
             raise ValueError(f"reasoning_effort bunlardan biri olmalıdır: {sorted(allowed)}")
         return value
 
-    @field_validator("product_catalog_path")
+    @field_validator("product_catalog_path", "documents_path", "document_baseline_path")
     @classmethod
-    def resolve_catalog_path(cls, value: Path) -> Path:
+    def resolve_project_path(cls, value: Path) -> Path:
         return value if value.is_absolute() else (PROJECT_ROOT / value).resolve()
 
 

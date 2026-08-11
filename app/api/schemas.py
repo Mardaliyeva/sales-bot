@@ -42,12 +42,14 @@ class ProductCardItem(StrictModel):
 
 class ProductCardsPresentation(StrictModel):
     type: Literal["product_cards"]
-    result_kind: Literal["matches", "alternatives"] = "matches"
+    result_kind: Literal["matches", "alternatives", "exact_conflict", "comparison"] = "matches"
     requested_label: str | None = None
     title: str
     total: int
     shown_count: int
-    recommended_product_id: str
+    recommended_product_id: str | None = None
+    requested_item: ProductCardItem | None = None
+    constraint_conflicts: list[str] = Field(default_factory=list)
     relaxed_fields: list[str] = Field(default_factory=list)
     items: list[ProductCardItem]
 
@@ -80,8 +82,13 @@ class DebugTraceResponse(StrictModel):
     message_id: UUID | None
     status: Literal["running", "completed", "failed"]
     model: dict[str, Any] = Field(default_factory=dict)
+    runtime: dict[str, Any] = Field(default_factory=dict)
     diagnosis: dict[str, Any] | None
     data_sources: dict[str, Any]
     timeline: list[dict[str, Any]]
     warnings: list[dict[str, Any]]
     metrics: dict[str, Any]
+    decision_explanation: dict[str, Any] | None = None
+    memory_transition: dict[str, Any] | None = None
+    continuation_context_before: str | None = None
+    continuation_context_after: str | None = None

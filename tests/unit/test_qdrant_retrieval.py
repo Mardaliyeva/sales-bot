@@ -11,7 +11,7 @@ from app.retrieval.qdrant import QdrantProductSearch
 from app.tools.catalog import ProductCatalog
 from app.tools.product_search import ProductSearchBackendError, ProductSearchTool
 from app.tools.registry import ToolRegistry
-from app.tools.schemas import ProductSearchArguments
+from app.tools.schemas import ProductQueryPlan, ProductSearchArguments
 from app.vectorstores.qdrant import VectorSearchHit
 
 
@@ -164,6 +164,39 @@ def test_semantic_search_hydrates_qdrant_ids_without_lexical_fields(catalog: Pro
     ]
 
 
+def test_unavailable_required_facet_returns_not_found_without_qdrant(
+    catalog: ProductCatalog,
+) -> None:
+    embeddings = FakeEmbeddings()
+    store = FakeStore(catalog.products[:3])
+    search = QdrantProductSearch(catalog, embeddings, store)
+    plan = ProductQueryPlan.model_validate(
+        {
+            "query": "qirmizi telefon var?",
+            "operation": "discover",
+            "filter_expression": {
+                "kind": "predicate",
+                "predicate": {
+                    "field": "color_code",
+                    "operator": "eq",
+                    "value": "red",
+                    "strength": "hard",
+                    "evidence_text": "qirmizi",
+                },
+            },
+        }
+    )
+
+    execution = search.search_with_trace(plan)
+
+    assert execution.result.match_status == "not_found"
+    assert execution.result.unavailable_requested_values[0]["value"] == "red"
+    assert execution.debug_trace["retrieval_skipped_reason"] == "unavailable_required_value"
+    assert execution.debug_trace["retrieval_executed"] is False
+    assert embeddings.calls == []
+    assert store.candidate_limits == []
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [("product_id", "prd_smartphones_001"), ("sku", "SYN-PH-APL-001"), ("model", "iPhone 17 Pro")],
@@ -192,7 +225,7 @@ def test_exact_qdrant_lookup_precedes_embedding(
     assert execution.debug_trace["semantic_state"] == "not_run_exact_match"
 
 
-def test_exact_filter_conflict_returns_empty_without_embedding(catalog: ProductCatalog) -> None:
+def test_exact_filter_conflict_keeps_requested_product_without_embedding(catalog: ProductCatalog) -> None:
     product = catalog.products[0]
     embeddings = FakeEmbeddings()
     store = FakeStore(
@@ -211,10 +244,82 @@ def test_exact_filter_conflict_returns_empty_without_embedding(catalog: ProductC
     )
 
     assert execution.result.total == 0
-    assert execution.result.match_status == "not_found"
+    assert execution.result.match_status == "exact_conflict"
     assert execution.result.items == []
+    assert execution.result.requested_item is not None
+    assert execution.result.requested_item.product_id == product["product_id"]
+    assert execution.result.constraint_conflicts
     assert execution.debug_trace["exact_filter_conflict"] is True
     assert embeddings.calls == []
+
+
+def test_legacy_flat_arguments_are_not_reinterpreted_from_query_text(
+    catalog: ProductCatalog,
+) -> None:
+    product = next(
+        item
+        for item in catalog.products
+        if item["product_id"] == "prd_air_conditioners_001"
+    )
+    store = FakeStore(
+        [product],
+        exact_unfiltered=[product["product_id"]],
+        exact_filtered=[product["product_id"]],
+    )
+    search = QdrantProductSearch(catalog, FakeEmbeddings(), store)
+
+    execution = search.search_with_trace(
+        ProductSearchArguments(
+            query="LG DUALCOOL AI Air 9K BTU, Wi-Fi və qiymətini de",
+            model="DUALCOOL AI Air 9K",
+            category_id="air_conditioners",
+            btu=9000,
+            attribute_filters=[
+                {"field": "wifi", "operator": "eq", "value": True},
+            ],
+        )
+    )
+
+    assert execution.result.match_status == "exact_match"
+    canonical = execution.debug_trace["canonical_arguments"]
+    assert canonical["search_intent"] == "discover"
+    assert canonical["btu"] == 9000
+    assert canonical["attribute_filters"] == [
+        {"field": "wifi", "operator": "eq", "value": True}
+    ]
+    assert execution.result.argument_corrections == []
+
+
+def test_legacy_flat_arguments_preserve_explicit_structured_intent(
+    catalog: ProductCatalog,
+) -> None:
+    product = next(
+        item for item in catalog.products if item["product_id"] == "prd_televisions_001"
+    )
+    search = QdrantProductSearch(
+        catalog,
+        FakeEmbeddings(),
+        FakeStore(
+            [product],
+            exact_unfiltered=[product["product_id"]],
+            exact_filtered=[],
+        ),
+    )
+
+    execution = search.search_with_trace(
+        ProductSearchArguments(
+            query="Samsung QN900D Neo QLED 8K 500 AZN-dən ucuz olmalıdır",
+            search_intent="lookup",
+            requested_fields=["price"],
+            category_id="televisions",
+            model="QN900D",
+            max_price=500,
+        )
+    )
+
+    assert execution.result.match_status == "exact_conflict"
+    assert execution.debug_trace["canonical_arguments"]["max_price"] == 500
+    assert execution.debug_trace["canonical_arguments"]["search_intent"] == "lookup"
 
 
 def test_no_filter_candidates_skips_embedding(catalog: ProductCatalog) -> None:
@@ -448,3 +553,24 @@ async def test_tool_registry_returns_explicit_unavailable_error_with_trace(
     assert execution.result["code"] == "product_search_unavailable"
     assert execution.debug_trace is not None
     assert execution.debug_trace["semantic_state"] == "not_configured"
+
+
+@pytest.mark.asyncio
+async def test_tool_registry_removes_exact_identifier_from_required_fields(
+    catalog: ProductCatalog,
+) -> None:
+    search = QdrantProductSearch(catalog)
+    registry = ToolRegistry(ProductSearchTool(search), timeout_seconds=1)
+
+    execution = await registry.execute_with_trace(
+        "product_search",
+        {
+            "query": "iPhone 19",
+            "model": "iPhone 19",
+            "required_filter_fields": ["model"],
+        },
+    )
+
+    assert execution.result["code"] == "product_search_unavailable"
+    assert execution.debug_trace is not None
+    assert execution.debug_trace["input_argument_corrections"][0]["original"] == "model"

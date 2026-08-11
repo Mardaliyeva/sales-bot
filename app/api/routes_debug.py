@@ -61,6 +61,9 @@ def _current_source_state(request: Request) -> dict[str, Any]:
     semantic = source_state.get("semantic_qdrant")
     if isinstance(semantic, dict) and semantic.get("configured"):
         semantic["collection"] = request.app.state.settings.qdrant_collection_name
+    documents = source_state.get("documents")
+    if isinstance(documents, dict) and documents.get("configured"):
+        documents["collection"] = request.app.state.settings.qdrant_document_collection_name
     return source_state
 
 
@@ -70,9 +73,21 @@ def _legacy_trace(
 ) -> dict[str, Any]:
     tool_messages = [message for message in snapshot.messages if message.role == "tool"]
     product_messages = [message for message in tool_messages if message.tool_name == "product_search"]
+    document_messages = [message for message in tool_messages if message.tool_name == "document_search"]
     last_result = product_messages[-1].tool_result if product_messages else None
     result_items = (last_result or {}).get("items", []) if last_result else []
-    if not product_messages:
+    if document_messages:
+        document_result = document_messages[-1].tool_result or {}
+        document_chunks = document_result.get("chunks", [])
+        if document_result.get("status") == "success":
+            data_status = (
+                f"Tapılıb: {len(document_chunks)}" if document_chunks else "Uyğun nəticə yoxdur"
+            )
+            observed_outcome = "document_chunks_found" if document_chunks else "no_document_match"
+        else:
+            data_status = "Müəyyən edilə bilmədi"
+            observed_outcome = "document_search_failed"
+    elif not product_messages:
         data_status = "Yoxlanılmayıb"
         observed_outcome = "catalog_not_checked"
     elif last_result and last_result.get("status") == "success":
@@ -92,6 +107,7 @@ def _legacy_trace(
     for message in tool_messages:
         result = message.tool_result or {}
         items = result.get("items", []) if result.get("status") == "success" else []
+        chunks = result.get("chunks", []) if result.get("status") == "success" else []
         timeline.append(
             {
                 "stage": message.tool_name or "tool",
@@ -104,6 +120,17 @@ def _legacy_trace(
                     "returned_products": [
                         {"product_id": item.get("product_id"), "name": item.get("name")}
                         for item in items
+                    ],
+                    "returned_chunks": [
+                        {
+                            "chunk_id": chunk.get("chunk_id"),
+                            "document_id": chunk.get("document_id"),
+                            "title": chunk.get("title"),
+                            "heading": chunk.get("heading"),
+                            "score": chunk.get("score"),
+                        }
+                        for chunk in chunks
+                        if isinstance(chunk, dict)
                     ],
                 },
                 "retrieval": None,
@@ -123,6 +150,7 @@ def _legacy_trace(
             "title": "Köhnə run üçün qismən məlumat",
             "detail": "Namizəd rank və score-ları əvvəldən saxlanılmadığı üçün göstərilə bilmir.",
             "catalog_checked": bool(product_messages),
+            "documents_checked": bool(document_messages),
             "data_status": data_status,
             "result_count": len(result_items) if last_result else None,
             "observed_outcome": observed_outcome,

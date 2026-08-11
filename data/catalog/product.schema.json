@@ -34,7 +34,7 @@
   "properties": {
     "product_id": {"type": "string", "pattern": "^prd_[a-z_]+_[0-9]{3}$"},
     "sku": {"type": "string", "pattern": "^SYN-[A-Z]{2}-[A-Z]{3}-[0-9]{3}$"},
-    "dataset_version": {"const": "1.0.0"},
+    "dataset_version": {"const": "1.1.0"},
     "is_synthetic": {"const": true},
     "language": {"const": "az"},
     "name": {"type": "string", "minLength": 5},

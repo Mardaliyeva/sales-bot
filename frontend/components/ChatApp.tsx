@@ -138,7 +138,9 @@ function ProductCardsMessage({
   presentation: ProductCardsPresentation;
   answer: string;
 }) {
-  const alternatives = presentation.result_kind === "alternatives";
+  const exactConflict = presentation.result_kind === "exact_conflict";
+  const comparison = presentation.result_kind === "comparison";
+  const alternatives = presentation.result_kind === "alternatives" || exactConflict;
   const response = splitProductAnswer(answer);
 
   return (
@@ -150,6 +152,46 @@ function ProductCardsMessage({
         <InlineMarkdown text={response.summary} />
       </div>
 
+      {exactConflict && presentation.requested_item ? (
+        <div className="product-card requested-product">
+          <div className="product-card-heading">
+            <div className="product-card-title">
+              <span className="product-recommended-label">Dəqiq məhsul</span>
+              <h3>{presentation.requested_item.name}</h3>
+              <code>{presentation.requested_item.sku}</code>
+            </div>
+            <div className="product-card-price">
+              <strong>
+                {formatPrice(
+                  presentation.requested_item.price,
+                  presentation.requested_item.currency,
+                )}
+              </strong>
+              <span
+                className={
+                  presentation.requested_item.stock_status === "in_stock"
+                    ? "in-stock"
+                    : "out-of-stock"
+                }
+              >
+                {presentation.requested_item.stock_status === "in_stock"
+                  ? "Stokda"
+                  : "Stokda yoxdur"}
+              </span>
+            </div>
+          </div>
+          {presentation.constraint_conflicts?.length ? (
+            <ul className="product-differences" aria-label="Tələb ziddiyyətləri">
+              {presentation.constraint_conflicts.map((conflict) => (
+                <li key={conflict}>{conflict}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      {exactConflict && presentation.items.length ? <h3>Yaxın alternativlər</h3> : null}
+
       <ul className="product-card-list">
         {presentation.items.map((item) => {
           const recommended = item.product_id === presentation.recommended_product_id;
@@ -158,10 +200,10 @@ function ProductCardsMessage({
             <li className={`product-card${recommended ? " recommended" : ""}`} key={item.product_id}>
               <div className="product-card-heading">
                 <div className="product-card-title">
-                  {recommended && alternatives ? (
+                  {recommended && (alternatives || comparison) ? (
                     <span className="product-recommended-label">
                       <CheckCircle2 size={14} aria-hidden="true" />
-                      Ən yaxın alternativ
+                      {comparison ? "Tövsiyə edilən seçim" : "Ən yaxın alternativ"}
                     </span>
                   ) : null}
                   <h3>{item.name}</h3>

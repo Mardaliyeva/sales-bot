@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from pydantic import ValidationError
+from qdrant_client.http import models
 
 from app.config import get_settings
 from app.embeddings.azure import DEFAULT_TEXT_VERSION, AzureEmbeddingClient, EmbeddingError
@@ -98,7 +99,14 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Lokal embedding cache-ni nəzərə alma",
     )
-    subparsers.add_parser("status", help="Qdrant indeksinin vəziyyətini göstər")
+    index_parser.add_argument("--collection-name")
+    status_parser = subparsers.add_parser("status", help="Qdrant indeksinin vəziyyətini göstər")
+    status_parser.add_argument("--collection-name")
+    promote_parser = subparsers.add_parser(
+        "promote", help="Yoxlanmış collection-u active alias-a atomik keçir"
+    )
+    promote_parser.add_argument("--collection-name", required=True)
+    promote_parser.add_argument("--alias", default="sales_bot_products_active")
     return parser
 
 
@@ -118,7 +126,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         settings = get_settings()
         catalog = ProductCatalog(settings.product_catalog_path)
         catalog.load()
-        store = QdrantProductStore.from_settings(settings)
+        collection_name = getattr(args, "collection_name", None)
+        store = QdrantProductStore.from_settings(settings, collection_name=collection_name)
         if args.command == "status":
             status = store.status(
                 [product["product_id"] for product in catalog.products],
@@ -130,6 +139,37 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             _print_status(status)
             return 0 if status.ready else 1
+
+        if args.command == "promote":
+            status = store.status(
+                [product["product_id"] for product in catalog.products],
+                expected_dataset_version=catalog.manifest["dataset_version"],
+                expected_catalog_checksum=catalog.manifest["checksums"]["products_sha256"],
+                expected_embedding_text_version=DEFAULT_TEXT_VERSION,
+                expected_embedding_deployment=settings.azure_embedding_model,
+                expected_embedding_dimensions=3072,
+            )
+            if not status.ready:
+                raise VectorStoreError("Hazır olmayan collection active alias-a keçirilə bilməz")
+            aliases = store.client.get_aliases().aliases
+            operations = []
+            if any(alias.alias_name == args.alias for alias in aliases):
+                operations.append(
+                    models.DeleteAliasOperation(
+                        delete_alias=models.DeleteAlias(alias_name=args.alias)
+                    )
+                )
+            operations.append(
+                models.CreateAliasOperation(
+                    create_alias=models.CreateAlias(
+                        collection_name=args.collection_name,
+                        alias_name=args.alias,
+                    )
+                )
+            )
+            store.client.update_collection_aliases(operations)
+            print(f"Active alias atomik yeniləndi: {args.alias} -> {args.collection_name}")
+            return 0
 
         embeddings = AzureEmbeddingClient.from_settings(settings)
         result = index_catalog(

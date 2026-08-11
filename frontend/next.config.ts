@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
-const apiBaseUrl = (process.env.SALES_BOT_API_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+const apiPort = process.env.SALES_BOT_API_PORT || "8001";
+const apiBaseUrl = (
+  process.env.SALES_BOT_API_URL || `http://127.0.0.1:${apiPort}`
+).replace(/\/$/, "");
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,

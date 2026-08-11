@@ -42,14 +42,23 @@ function isProductCardsPresentation(value: unknown): value is ProductCardsPresen
     presentation.type === "product_cards" &&
     (presentation.result_kind === undefined ||
       presentation.result_kind === "matches" ||
-      presentation.result_kind === "alternatives") &&
+      presentation.result_kind === "alternatives" ||
+      presentation.result_kind === "exact_conflict" ||
+      presentation.result_kind === "comparison") &&
     (presentation.requested_label === undefined ||
       presentation.requested_label === null ||
       typeof presentation.requested_label === "string") &&
     typeof presentation.title === "string" &&
     typeof presentation.total === "number" &&
     typeof presentation.shown_count === "number" &&
-    typeof presentation.recommended_product_id === "string" &&
+    (typeof presentation.recommended_product_id === "string" ||
+      presentation.recommended_product_id === null) &&
+    (presentation.requested_item === undefined ||
+      presentation.requested_item === null ||
+      isProductCardItem(presentation.requested_item)) &&
+    (presentation.constraint_conflicts === undefined ||
+      (Array.isArray(presentation.constraint_conflicts) &&
+        presentation.constraint_conflicts.every((conflict) => typeof conflict === "string"))) &&
     (presentation.relaxed_fields === undefined ||
       (Array.isArray(presentation.relaxed_fields) &&
         presentation.relaxed_fields.every((field) => typeof field === "string"))) &&
@@ -63,6 +72,10 @@ function normalizePresentation(presentation: ProductCardsPresentation): ProductC
     ...presentation,
     result_kind: presentation.result_kind ?? "matches",
     relaxed_fields: presentation.relaxed_fields ?? [],
+    constraint_conflicts: presentation.constraint_conflicts ?? [],
+    requested_item: presentation.requested_item
+      ? { ...presentation.requested_item, differences: presentation.requested_item.differences ?? [] }
+      : presentation.requested_item,
     items: presentation.items.map((item) => ({
       ...item,
       differences: item.differences ?? [],

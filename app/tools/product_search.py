@@ -4,11 +4,13 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from app.tools.schemas import ProductSearchArguments, ProductSearchResult
+from app.tools.schemas import ProductQueryPlan, ProductSearchArguments, ProductSearchResult
+
+ProductSearchRequest = ProductSearchArguments | ProductQueryPlan
 
 
 class ProductSearchBackend(Protocol):
-    def search(self, arguments: ProductSearchArguments) -> ProductSearchResult: ...
+    def search(self, arguments: ProductSearchRequest) -> ProductSearchResult: ...
 
 
 class ProductSearchBackendError(RuntimeError):
@@ -37,18 +39,18 @@ class ProductSearchTool:
     def __init__(self, backend: ProductSearchBackend) -> None:
         self.backend = backend
 
-    async def execute(self, arguments: ProductSearchArguments) -> ProductSearchResult:
+    async def execute(self, arguments: ProductSearchRequest) -> ProductSearchResult:
         execution = await self.execute_with_trace(arguments)
         return execution.result
 
-    async def execute_with_trace(self, arguments: ProductSearchArguments) -> ProductSearchExecution:
+    async def execute_with_trace(self, arguments: ProductSearchRequest) -> ProductSearchExecution:
         return await asyncio.to_thread(self._execute_sync, arguments)
 
     def debug_source_state(self) -> dict[str, Any]:
         source_state = getattr(self.backend, "debug_source_state", None)
         return source_state() if callable(source_state) else {}
 
-    def _execute_sync(self, arguments: ProductSearchArguments) -> ProductSearchExecution:
+    def _execute_sync(self, arguments: ProductSearchRequest) -> ProductSearchExecution:
         search_with_trace = getattr(self.backend, "search_with_trace", None)
         if callable(search_with_trace):
             execution = search_with_trace(arguments)

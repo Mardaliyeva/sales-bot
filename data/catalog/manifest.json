@@ -1,5 +1,5 @@
 {
-  "dataset_version": "1.0.0",
+  "dataset_version": "1.1.0",
   "seed": 20260804,
   "generated_at": "2026-08-06T13:53:35+04:00",
   "language": "az",
@@ -11,12 +11,12 @@
   },
   "product_count": 300,
   "category_counts": {
+    "air_conditioners": 50,
+    "headphones": 50,
+    "laptops": 50,
     "smartphones": 50,
     "tablets": 50,
-    "laptops": 50,
-    "air_conditioners": 50,
-    "televisions": 50,
-    "headphones": 50
+    "televisions": 50
   },
   "brand_counts": {
     "smartphones": {
@@ -92,12 +92,18 @@
     "error_count": 0
   },
   "checksums": {
-    "products_sha256": "6828e695f485547310304ace3b3e7400d16ca2750d5e85e0848049b39e6172ec",
-    "schema_sha256": "87258e1828acf06ef60d1feef5d2395b4285d7e5430ebc9362feff108f033b63"
+    "products_sha256": "858cb4c2cd77b6abe5888282b6be85a66239fca151f96298bc0f4161388e76de",
+    "schema_sha256": "a19666c18b4306bb1f3bd07eef141f7dc7f2509c1d785066d56880f338ea158f",
+    "generation_rules_sha256": "7c8985a660e08f0c8264945543ea880b5ec3bc755ad05c5142524bf80333696d"
   },
   "naming": {
     "product_names": "realistic_real-world_model_names",
     "sku": "synthetic_stable_identifier",
     "specifications_and_commercial_data": "synthetic_test_data"
+  },
+  "generator": {
+    "schema_version": 1,
+    "rules_file": "generation_rules.json",
+    "record_source": "single_structured_record"
   }
 }

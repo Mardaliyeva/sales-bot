@@ -55,8 +55,8 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_smartphones_001",
         "prd_smartphones_003",
+        "prd_smartphones_001",
         "prd_smartphones_002"
       ],
       "match_status_matches": true,
@@ -69,8 +69,8 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_smartphones_001",
         "prd_smartphones_003",
+        "prd_smartphones_001",
         "prd_smartphones_002"
       ],
       "returned_total": 3,
@@ -103,15 +103,15 @@
       "hit_product_ids": [
         "prd_smartphones_001",
         "prd_smartphones_002",
-        "prd_smartphones_003",
         "prd_smartphones_006",
-        "prd_smartphones_005"
+        "prd_smartphones_003",
+        "prd_smartphones_007"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
         "prd_smartphones_004",
-        "prd_smartphones_007",
+        "prd_smartphones_005",
         "prd_smartphones_008",
         "prd_smartphones_009",
         "prd_smartphones_010"
@@ -125,9 +125,9 @@
       "returned_product_ids": [
         "prd_smartphones_001",
         "prd_smartphones_002",
-        "prd_smartphones_003",
         "prd_smartphones_006",
-        "prd_smartphones_005"
+        "prd_smartphones_003",
+        "prd_smartphones_007"
       ],
       "returned_total": 10,
       "suite": "canonical",
@@ -175,25 +175,25 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
+        "prd_smartphones_004",
         "prd_smartphones_034",
-        "prd_smartphones_022",
         "prd_smartphones_024",
-        "prd_smartphones_009",
-        "prd_smartphones_006"
+        "prd_smartphones_022",
+        "prd_smartphones_016"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
         "prd_smartphones_001",
-        "prd_smartphones_004",
         "prd_smartphones_005",
+        "prd_smartphones_006",
         "prd_smartphones_008",
+        "prd_smartphones_009",
         "prd_smartphones_010",
         "prd_smartphones_011",
         "prd_smartphones_012",
         "prd_smartphones_013",
         "prd_smartphones_015",
-        "prd_smartphones_016",
         "prd_smartphones_017",
         "prd_smartphones_018",
         "prd_smartphones_019",
@@ -215,11 +215,11 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
+        "prd_smartphones_004",
         "prd_smartphones_034",
-        "prd_smartphones_022",
         "prd_smartphones_024",
-        "prd_smartphones_009",
-        "prd_smartphones_006"
+        "prd_smartphones_022",
+        "prd_smartphones_016"
       ],
       "returned_total": 28,
       "suite": "canonical",
@@ -289,20 +289,18 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_smartphones_006",
         "prd_smartphones_004",
-        "prd_smartphones_022",
+        "prd_smartphones_003",
+        "prd_smartphones_006",
         "prd_smartphones_001",
-        "prd_smartphones_039"
+        "prd_smartphones_008"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
         "prd_smartphones_002",
-        "prd_smartphones_003",
         "prd_smartphones_005",
         "prd_smartphones_007",
-        "prd_smartphones_008",
         "prd_smartphones_009",
         "prd_smartphones_010",
         "prd_smartphones_011",
@@ -316,6 +314,7 @@
         "prd_smartphones_019",
         "prd_smartphones_020",
         "prd_smartphones_021",
+        "prd_smartphones_022",
         "prd_smartphones_023",
         "prd_smartphones_024",
         "prd_smartphones_025",
@@ -332,6 +331,7 @@
         "prd_smartphones_036",
         "prd_smartphones_037",
         "prd_smartphones_038",
+        "prd_smartphones_039",
         "prd_smartphones_040",
         "prd_smartphones_041",
         "prd_smartphones_042",
@@ -351,11 +351,11 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_smartphones_006",
         "prd_smartphones_004",
-        "prd_smartphones_022",
+        "prd_smartphones_003",
+        "prd_smartphones_006",
         "prd_smartphones_001",
-        "prd_smartphones_039"
+        "prd_smartphones_008"
       ],
       "returned_total": 50,
       "suite": "canonical",
@@ -497,10 +497,10 @@
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_tablets_001",
-        "prd_tablets_008",
         "prd_tablets_002",
-        "prd_tablets_011",
-        "prd_tablets_013"
+        "prd_tablets_008",
+        "prd_tablets_013",
+        "prd_tablets_011"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -513,10 +513,10 @@
       "returned_count_within_limit": true,
       "returned_product_ids": [
         "prd_tablets_001",
-        "prd_tablets_008",
         "prd_tablets_002",
-        "prd_tablets_011",
-        "prd_tablets_013"
+        "prd_tablets_008",
+        "prd_tablets_013",
+        "prd_tablets_011"
       ],
       "returned_total": 5,
       "suite": "canonical",
@@ -586,11 +586,11 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_tablets_026",
-        "prd_tablets_030",
-        "prd_tablets_023",
         "prd_tablets_039",
-        "prd_tablets_035"
+        "prd_tablets_026",
+        "prd_tablets_037",
+        "prd_tablets_023",
+        "prd_tablets_040"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -622,14 +622,14 @@
         "prd_tablets_027",
         "prd_tablets_028",
         "prd_tablets_029",
+        "prd_tablets_030",
         "prd_tablets_031",
         "prd_tablets_032",
         "prd_tablets_033",
         "prd_tablets_034",
+        "prd_tablets_035",
         "prd_tablets_036",
-        "prd_tablets_037",
         "prd_tablets_038",
-        "prd_tablets_040",
         "prd_tablets_041",
         "prd_tablets_042",
         "prd_tablets_043",
@@ -648,11 +648,11 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_tablets_026",
-        "prd_tablets_030",
-        "prd_tablets_023",
         "prd_tablets_039",
-        "prd_tablets_035"
+        "prd_tablets_026",
+        "prd_tablets_037",
+        "prd_tablets_023",
+        "prd_tablets_040"
       ],
       "returned_total": 50,
       "suite": "canonical",
@@ -796,8 +796,8 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_laptops_004",
-        "prd_laptops_001"
+        "prd_laptops_001",
+        "prd_laptops_004"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -809,8 +809,8 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_laptops_004",
-        "prd_laptops_001"
+        "prd_laptops_001",
+        "prd_laptops_004"
       ],
       "returned_total": 2,
       "suite": "canonical",
@@ -881,10 +881,10 @@
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_laptops_018",
-        "prd_laptops_024",
-        "prd_laptops_050",
-        "prd_laptops_041",
-        "prd_laptops_021"
+        "prd_laptops_023",
+        "prd_laptops_016",
+        "prd_laptops_021",
+        "prd_laptops_012"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -900,16 +900,14 @@
         "prd_laptops_009",
         "prd_laptops_010",
         "prd_laptops_011",
-        "prd_laptops_012",
         "prd_laptops_013",
         "prd_laptops_014",
         "prd_laptops_015",
-        "prd_laptops_016",
         "prd_laptops_017",
         "prd_laptops_019",
         "prd_laptops_020",
         "prd_laptops_022",
-        "prd_laptops_023",
+        "prd_laptops_024",
         "prd_laptops_025",
         "prd_laptops_026",
         "prd_laptops_027",
@@ -926,6 +924,7 @@
         "prd_laptops_038",
         "prd_laptops_039",
         "prd_laptops_040",
+        "prd_laptops_041",
         "prd_laptops_042",
         "prd_laptops_043",
         "prd_laptops_044",
@@ -933,7 +932,8 @@
         "prd_laptops_046",
         "prd_laptops_047",
         "prd_laptops_048",
-        "prd_laptops_049"
+        "prd_laptops_049",
+        "prd_laptops_050"
       ],
       "outcome": "passed",
       "precision_at_5": 1.0,
@@ -943,10 +943,10 @@
       "returned_count_within_limit": true,
       "returned_product_ids": [
         "prd_laptops_018",
-        "prd_laptops_024",
-        "prd_laptops_050",
-        "prd_laptops_041",
-        "prd_laptops_021"
+        "prd_laptops_023",
+        "prd_laptops_016",
+        "prd_laptops_021",
+        "prd_laptops_012"
       ],
       "returned_total": 50,
       "suite": "canonical",
@@ -987,8 +987,8 @@
       "expect_empty": false,
       "expected_match_status": null,
       "expected_product_ids": [
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_004",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_008",
         "prd_air_conditioners_010"
       ],
       "expected_total": 3,
@@ -997,8 +997,8 @@
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_air_conditioners_010",
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_004"
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_002"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -1011,8 +1011,8 @@
       "returned_count_within_limit": true,
       "returned_product_ids": [
         "prd_air_conditioners_010",
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_004"
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_002"
       ],
       "returned_total": 3,
       "suite": "canonical",
@@ -1045,8 +1045,8 @@
         "prd_air_conditioners_001",
         "prd_air_conditioners_002",
         "prd_air_conditioners_003",
-        "prd_air_conditioners_007",
-        "prd_air_conditioners_004"
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_007"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -1067,8 +1067,8 @@
         "prd_air_conditioners_001",
         "prd_air_conditioners_002",
         "prd_air_conditioners_003",
-        "prd_air_conditioners_007",
-        "prd_air_conditioners_004"
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_007"
       ],
       "returned_total": 10,
       "suite": "canonical",
@@ -1171,11 +1171,11 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_air_conditioners_037",
-        "prd_air_conditioners_036",
-        "prd_air_conditioners_031",
+        "prd_air_conditioners_029",
+        "prd_air_conditioners_024",
         "prd_air_conditioners_025",
-        "prd_air_conditioners_044"
+        "prd_air_conditioners_026",
+        "prd_air_conditioners_021"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -1200,25 +1200,25 @@
         "prd_air_conditioners_018",
         "prd_air_conditioners_019",
         "prd_air_conditioners_020",
-        "prd_air_conditioners_021",
         "prd_air_conditioners_022",
         "prd_air_conditioners_023",
-        "prd_air_conditioners_024",
-        "prd_air_conditioners_026",
         "prd_air_conditioners_027",
         "prd_air_conditioners_028",
-        "prd_air_conditioners_029",
         "prd_air_conditioners_030",
+        "prd_air_conditioners_031",
         "prd_air_conditioners_032",
         "prd_air_conditioners_033",
         "prd_air_conditioners_034",
         "prd_air_conditioners_035",
+        "prd_air_conditioners_036",
+        "prd_air_conditioners_037",
         "prd_air_conditioners_038",
         "prd_air_conditioners_039",
         "prd_air_conditioners_040",
         "prd_air_conditioners_041",
         "prd_air_conditioners_042",
         "prd_air_conditioners_043",
+        "prd_air_conditioners_044",
         "prd_air_conditioners_045",
         "prd_air_conditioners_046",
         "prd_air_conditioners_047",
@@ -1233,11 +1233,11 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_air_conditioners_037",
-        "prd_air_conditioners_036",
-        "prd_air_conditioners_031",
+        "prd_air_conditioners_029",
+        "prd_air_conditioners_024",
         "prd_air_conditioners_025",
-        "prd_air_conditioners_044"
+        "prd_air_conditioners_026",
+        "prd_air_conditioners_021"
       ],
       "returned_total": 50,
       "suite": "canonical",
@@ -1286,8 +1286,8 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_televisions_008",
-        "prd_televisions_001"
+        "prd_televisions_001",
+        "prd_televisions_008"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -1299,8 +1299,8 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_televisions_008",
-        "prd_televisions_001"
+        "prd_televisions_001",
+        "prd_televisions_008"
       ],
       "returned_total": 2,
       "suite": "canonical",
@@ -1332,8 +1332,8 @@
       "hit_product_ids": [
         "prd_televisions_001",
         "prd_televisions_002",
-        "prd_televisions_003",
         "prd_televisions_004",
+        "prd_televisions_003",
         "prd_televisions_007"
       ],
       "match_status_matches": true,
@@ -1354,8 +1354,8 @@
       "returned_product_ids": [
         "prd_televisions_001",
         "prd_televisions_002",
-        "prd_televisions_003",
         "prd_televisions_004",
+        "prd_televisions_003",
         "prd_televisions_007"
       ],
       "returned_total": 10,
@@ -1384,11 +1384,11 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_televisions_001",
         "prd_televisions_015",
+        "prd_televisions_001",
         "prd_televisions_003",
-        "prd_televisions_008",
-        "prd_televisions_004"
+        "prd_televisions_004",
+        "prd_televisions_008"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -1404,11 +1404,11 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_televisions_001",
         "prd_televisions_015",
+        "prd_televisions_001",
         "prd_televisions_003",
-        "prd_televisions_008",
-        "prd_televisions_004"
+        "prd_televisions_004",
+        "prd_televisions_008"
       ],
       "returned_total": 8,
       "suite": "canonical",
@@ -1478,11 +1478,11 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_televisions_020",
-        "prd_televisions_024",
-        "prd_televisions_047",
+        "prd_televisions_015",
+        "prd_televisions_009",
         "prd_televisions_030",
-        "prd_televisions_017"
+        "prd_televisions_047",
+        "prd_televisions_024"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -1495,16 +1495,16 @@
         "prd_televisions_006",
         "prd_televisions_007",
         "prd_televisions_008",
-        "prd_televisions_009",
         "prd_televisions_010",
         "prd_televisions_011",
         "prd_televisions_012",
         "prd_televisions_013",
         "prd_televisions_014",
-        "prd_televisions_015",
         "prd_televisions_016",
+        "prd_televisions_017",
         "prd_televisions_018",
         "prd_televisions_019",
+        "prd_televisions_020",
         "prd_televisions_021",
         "prd_televisions_022",
         "prd_televisions_023",
@@ -1540,11 +1540,11 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_televisions_020",
-        "prd_televisions_024",
-        "prd_televisions_047",
+        "prd_televisions_015",
+        "prd_televisions_009",
         "prd_televisions_030",
-        "prd_televisions_017"
+        "prd_televisions_047",
+        "prd_televisions_024"
       ],
       "returned_total": 50,
       "suite": "canonical",
@@ -1692,19 +1692,19 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_headphones_003",
         "prd_headphones_002",
+        "prd_headphones_003",
         "prd_headphones_001",
-        "prd_headphones_005",
-        "prd_headphones_010"
+        "prd_headphones_015",
+        "prd_headphones_013"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
         "prd_headphones_004",
+        "prd_headphones_005",
         "prd_headphones_009",
-        "prd_headphones_013",
-        "prd_headphones_015"
+        "prd_headphones_010"
       ],
       "outcome": "passed",
       "precision_at_5": 1.0,
@@ -1713,11 +1713,11 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_headphones_003",
         "prd_headphones_002",
+        "prd_headphones_003",
         "prd_headphones_001",
-        "prd_headphones_005",
-        "prd_headphones_010"
+        "prd_headphones_015",
+        "prd_headphones_013"
       ],
       "returned_total": 9,
       "suite": "canonical",
@@ -1787,16 +1787,15 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
+        "prd_headphones_003",
         "prd_headphones_001",
         "prd_headphones_002",
-        "prd_headphones_003",
         "prd_headphones_046",
-        "prd_headphones_048"
+        "prd_headphones_004"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
-        "prd_headphones_004",
         "prd_headphones_005",
         "prd_headphones_006",
         "prd_headphones_007",
@@ -1839,6 +1838,7 @@
         "prd_headphones_044",
         "prd_headphones_045",
         "prd_headphones_047",
+        "prd_headphones_048",
         "prd_headphones_049",
         "prd_headphones_050"
       ],
@@ -1849,11 +1849,11 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
+        "prd_headphones_003",
         "prd_headphones_001",
         "prd_headphones_002",
-        "prd_headphones_003",
         "prd_headphones_046",
-        "prd_headphones_048"
+        "prd_headphones_004"
       ],
       "returned_total": 50,
       "suite": "canonical",
@@ -1901,19 +1901,19 @@
       "expected_total": 3,
       "false_positive_ids": [
         "prd_smartphones_006",
-        "prd_smartphones_007",
-        "prd_smartphones_009"
+        "prd_smartphones_010",
+        "prd_smartphones_007"
       ],
       "first_hit_rank": 2,
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_smartphones_001",
-        "prd_smartphones_002"
+        "prd_smartphones_003"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
-        "prd_smartphones_003"
+        "prd_smartphones_002"
       ],
       "outcome": "partial",
       "precision_at_5": 0.4,
@@ -1924,9 +1924,9 @@
       "returned_product_ids": [
         "prd_smartphones_006",
         "prd_smartphones_001",
-        "prd_smartphones_002",
-        "prd_smartphones_007",
-        "prd_smartphones_009"
+        "prd_smartphones_003",
+        "prd_smartphones_010",
+        "prd_smartphones_007"
       ],
       "returned_total": 10,
       "suite": "challenge",
@@ -1946,33 +1946,33 @@
       ],
       "expected_total": 3,
       "false_positive_ids": [
-        "prd_tablets_007",
         "prd_tablets_005",
-        "prd_tablets_006"
+        "prd_tablets_010",
+        "prd_tablets_007"
       ],
-      "first_hit_rank": 4,
+      "first_hit_rank": 3,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_tablets_002",
-        "prd_tablets_001"
+        "prd_tablets_001",
+        "prd_tablets_003"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
-        "prd_tablets_003"
+        "prd_tablets_002"
       ],
       "outcome": "partial",
       "precision_at_5": 0.4,
       "query": "dərsdə qeyd aparmaq və video izləmək üçün Apple cihazı",
       "query_id": "challenge_002",
-      "reciprocal_rank": 0.25,
+      "reciprocal_rank": 0.333333,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_tablets_007",
         "prd_tablets_005",
-        "prd_tablets_006",
-        "prd_tablets_002",
-        "prd_tablets_001"
+        "prd_tablets_010",
+        "prd_tablets_001",
+        "prd_tablets_007",
+        "prd_tablets_003"
       ],
       "returned_total": 10,
       "suite": "challenge",
@@ -1992,33 +1992,77 @@
       ],
       "expected_total": 3,
       "false_positive_ids": [
-        "prd_laptops_007",
         "prd_laptops_008",
-        "prd_laptops_009"
+        "prd_laptops_007"
       ],
       "first_hit_rank": 3,
       "hit_at_5": true,
       "hit_product_ids": [
+        "prd_laptops_001",
         "prd_laptops_002",
-        "prd_laptops_001"
+        "prd_laptops_003"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
-      "missed_product_ids": [
-        "prd_laptops_003"
-      ],
+      "missed_product_ids": [],
       "outcome": "partial",
-      "precision_at_5": 0.4,
+      "precision_at_5": 0.6,
       "query": "universitet tapşırıqları və gündəlik ofis işi üçün Lenovo kompüteri",
       "query_id": "challenge_003",
       "reciprocal_rank": 0.333333,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_laptops_007",
         "prd_laptops_008",
+        "prd_laptops_007",
+        "prd_laptops_001",
         "prd_laptops_002",
-        "prd_laptops_009",
-        "prd_laptops_001"
+        "prd_laptops_003"
+      ],
+      "returned_total": 10,
+      "suite": "challenge",
+      "top_5_coverage": 1.0,
+      "total_count_matches": false,
+      "type": "semantic_paraphrase"
+    },
+    {
+      "actual_match_status": "matching_products",
+      "empty_result_correct": null,
+      "expect_empty": false,
+      "expected_match_status": null,
+      "expected_product_ids": [
+        "prd_air_conditioners_001",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_003"
+      ],
+      "expected_total": 3,
+      "false_positive_ids": [
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_007",
+        "prd_air_conditioners_010"
+      ],
+      "first_hit_rank": 2,
+      "hit_at_5": true,
+      "hit_product_ids": [
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_001"
+      ],
+      "match_status_matches": true,
+      "max_returned_items": null,
+      "missed_product_ids": [
+        "prd_air_conditioners_003"
+      ],
+      "outcome": "partial",
+      "precision_at_5": 0.4,
+      "query": "balaca ofisi yayda sərin, qışda isti saxlamaq üçün LG sistemi",
+      "query_id": "challenge_004",
+      "reciprocal_rank": 0.5,
+      "returned_count_within_limit": true,
+      "returned_product_ids": [
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_007",
+        "prd_air_conditioners_010",
+        "prd_air_conditioners_001"
       ],
       "returned_total": 10,
       "suite": "challenge",
@@ -2032,91 +2076,44 @@
       "expect_empty": false,
       "expected_match_status": null,
       "expected_product_ids": [
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_002",
-        "prd_air_conditioners_003"
+        "prd_televisions_001",
+        "prd_televisions_002",
+        "prd_televisions_003"
       ],
       "expected_total": 3,
       "false_positive_ids": [
-        "prd_air_conditioners_009",
-        "prd_air_conditioners_008",
-        "prd_air_conditioners_007",
-        "prd_air_conditioners_010"
+        "prd_televisions_009",
+        "prd_televisions_005",
+        "prd_televisions_006",
+        "prd_televisions_010"
       ],
-      "first_hit_rank": 2,
+      "first_hit_rank": 4,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_air_conditioners_002"
+        "prd_televisions_001"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_003"
+        "prd_televisions_002",
+        "prd_televisions_003"
       ],
       "outcome": "partial",
       "precision_at_5": 0.2,
-      "query": "balaca ofisi yayda sərin, qışda isti saxlamaq üçün LG sistemi",
-      "query_id": "challenge_004",
-      "reciprocal_rank": 0.5,
+      "query": "evdə film gecələri üçün Samsung böyük ekranı",
+      "query_id": "challenge_005",
+      "reciprocal_rank": 0.25,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_air_conditioners_009",
-        "prd_air_conditioners_002",
-        "prd_air_conditioners_008",
-        "prd_air_conditioners_007",
-        "prd_air_conditioners_010"
+        "prd_televisions_009",
+        "prd_televisions_005",
+        "prd_televisions_006",
+        "prd_televisions_001",
+        "prd_televisions_010"
       ],
       "returned_total": 10,
       "suite": "challenge",
       "top_5_coverage": 0.333333,
-      "total_count_matches": false,
-      "type": "semantic_paraphrase"
-    },
-    {
-      "actual_match_status": "matching_products",
-      "empty_result_correct": null,
-      "expect_empty": false,
-      "expected_match_status": null,
-      "expected_product_ids": [
-        "prd_televisions_001",
-        "prd_televisions_002",
-        "prd_televisions_003"
-      ],
-      "expected_total": 3,
-      "false_positive_ids": [
-        "prd_televisions_009",
-        "prd_televisions_006",
-        "prd_televisions_005",
-        "prd_televisions_008",
-        "prd_televisions_010"
-      ],
-      "first_hit_rank": null,
-      "hit_at_5": false,
-      "hit_product_ids": [],
-      "match_status_matches": true,
-      "max_returned_items": null,
-      "missed_product_ids": [
-        "prd_televisions_001",
-        "prd_televisions_002",
-        "prd_televisions_003"
-      ],
-      "outcome": "failed",
-      "precision_at_5": 0.0,
-      "query": "evdə film gecələri üçün Samsung böyük ekranı",
-      "query_id": "challenge_005",
-      "reciprocal_rank": 0.0,
-      "returned_count_within_limit": true,
-      "returned_product_ids": [
-        "prd_televisions_009",
-        "prd_televisions_006",
-        "prd_televisions_005",
-        "prd_televisions_008",
-        "prd_televisions_010"
-      ],
-      "returned_total": 10,
-      "suite": "challenge",
-      "top_5_coverage": 0.0,
       "total_count_matches": false,
       "type": "semantic_paraphrase"
     },
@@ -2132,15 +2129,15 @@
       ],
       "expected_total": 3,
       "false_positive_ids": [
-        "prd_headphones_005",
-        "prd_headphones_004"
+        "prd_headphones_004",
+        "prd_headphones_005"
       ],
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_headphones_003",
-        "prd_headphones_002",
-        "prd_headphones_001"
+        "prd_headphones_001",
+        "prd_headphones_002"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -2153,10 +2150,10 @@
       "returned_count_within_limit": true,
       "returned_product_ids": [
         "prd_headphones_003",
-        "prd_headphones_002",
         "prd_headphones_001",
-        "prd_headphones_005",
-        "prd_headphones_004"
+        "prd_headphones_002",
+        "prd_headphones_004",
+        "prd_headphones_005"
       ],
       "returned_total": 9,
       "suite": "challenge",
@@ -2178,12 +2175,12 @@
       "false_positive_ids": [
         "prd_smartphones_010"
       ],
-      "first_hit_rank": 2,
+      "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_smartphones_003",
-        "prd_smartphones_001",
-        "prd_smartphones_002"
+        "prd_smartphones_002",
+        "prd_smartphones_001"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -2192,13 +2189,13 @@
       "precision_at_5": 0.75,
       "query": "qara 128 gb ayfon stokda olsun",
       "query_id": "challenge_007",
-      "reciprocal_rank": 0.5,
+      "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_smartphones_010",
         "prd_smartphones_003",
-        "prd_smartphones_001",
-        "prd_smartphones_002"
+        "prd_smartphones_010",
+        "prd_smartphones_002",
+        "prd_smartphones_001"
       ],
       "returned_total": 4,
       "suite": "challenge",
@@ -2218,38 +2215,37 @@
       ],
       "expected_total": 3,
       "false_positive_ids": [
-        "prd_tablets_006",
-        "prd_tablets_005",
         "prd_tablets_007",
-        "prd_tablets_009"
+        "prd_tablets_005",
+        "prd_tablets_010"
       ],
       "first_hit_rank": 4,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_tablets_001"
+        "prd_tablets_001",
+        "prd_tablets_003"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
-        "prd_tablets_002",
-        "prd_tablets_003"
+        "prd_tablets_002"
       ],
       "outcome": "partial",
-      "precision_at_5": 0.2,
+      "precision_at_5": 0.4,
       "query": "telebe ucun qelem destekli planset",
       "query_id": "challenge_008",
       "reciprocal_rank": 0.25,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_tablets_006",
-        "prd_tablets_005",
         "prd_tablets_007",
+        "prd_tablets_005",
+        "prd_tablets_010",
         "prd_tablets_001",
-        "prd_tablets_009"
+        "prd_tablets_003"
       ],
       "returned_total": 10,
       "suite": "challenge",
-      "top_5_coverage": 0.333333,
+      "top_5_coverage": 0.666667,
       "total_count_matches": false,
       "type": "typo"
     },
@@ -2269,7 +2265,7 @@
         "prd_laptops_009",
         "prd_laptops_004"
       ],
-      "first_hit_rank": 4,
+      "first_hit_rank": 3,
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_laptops_003",
@@ -2284,14 +2280,14 @@
       "precision_at_5": 0.4,
       "query": "is ve ders ucun lenovo notbuk",
       "query_id": "challenge_009",
-      "reciprocal_rank": 0.25,
+      "reciprocal_rank": 0.333333,
       "returned_count_within_limit": true,
       "returned_product_ids": [
         "prd_laptops_007",
         "prd_laptops_009",
-        "prd_laptops_004",
         "prd_laptops_003",
-        "prd_laptops_001"
+        "prd_laptops_001",
+        "prd_laptops_004"
       ],
       "returned_total": 10,
       "suite": "challenge",
@@ -2311,37 +2307,38 @@
       ],
       "expected_total": 3,
       "false_positive_ids": [
-        "prd_air_conditioners_007",
         "prd_air_conditioners_010",
+        "prd_air_conditioners_007",
+        "prd_air_conditioners_008",
         "prd_air_conditioners_005"
       ],
-      "first_hit_rank": 3,
+      "first_hit_rank": 5,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_002"
+        "prd_air_conditioners_001"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
+        "prd_air_conditioners_002",
         "prd_air_conditioners_003"
       ],
       "outcome": "partial",
-      "precision_at_5": 0.4,
+      "precision_at_5": 0.2,
       "query": "balaca ofis ucun sessiz kandisaner",
       "query_id": "challenge_010",
-      "reciprocal_rank": 0.333333,
+      "reciprocal_rank": 0.2,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_air_conditioners_007",
         "prd_air_conditioners_010",
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_002",
-        "prd_air_conditioners_005"
+        "prd_air_conditioners_007",
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_005",
+        "prd_air_conditioners_001"
       ],
       "returned_total": 10,
       "suite": "challenge",
-      "top_5_coverage": 0.666667,
+      "top_5_coverage": 0.333333,
       "total_count_matches": false,
       "type": "typo"
     },
@@ -2357,37 +2354,38 @@
       ],
       "expected_total": 3,
       "false_positive_ids": [
-        "prd_televisions_008",
+        "prd_televisions_009",
+        "prd_televisions_006",
         "prd_televisions_010",
-        "prd_televisions_009"
+        "prd_televisions_008"
       ],
-      "first_hit_rank": 2,
+      "first_hit_rank": 4,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_televisions_001",
         "prd_televisions_003"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
       "missed_product_ids": [
+        "prd_televisions_001",
         "prd_televisions_002"
       ],
       "outcome": "partial",
-      "precision_at_5": 0.4,
+      "precision_at_5": 0.2,
       "query": "film ucun boyuk ekran televizr",
       "query_id": "challenge_011",
-      "reciprocal_rank": 0.5,
+      "reciprocal_rank": 0.25,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_televisions_008",
-        "prd_televisions_001",
-        "prd_televisions_010",
         "prd_televisions_009",
-        "prd_televisions_003"
+        "prd_televisions_006",
+        "prd_televisions_010",
+        "prd_televisions_003",
+        "prd_televisions_008"
       ],
       "returned_total": 10,
       "suite": "challenge",
-      "top_5_coverage": 0.666667,
+      "top_5_coverage": 0.333333,
       "total_count_matches": false,
       "type": "typo"
     },
@@ -2406,12 +2404,12 @@
         "prd_headphones_004",
         "prd_headphones_009"
       ],
-      "first_hit_rank": 1,
+      "first_hit_rank": 2,
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_headphones_001",
-        "prd_headphones_002",
-        "prd_headphones_003"
+        "prd_headphones_003",
+        "prd_headphones_002"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -2420,14 +2418,14 @@
       "precision_at_5": 0.6,
       "query": "muzqi ve zeng ucun blutus nausnik",
       "query_id": "challenge_012",
-      "reciprocal_rank": 1.0,
+      "reciprocal_rank": 0.5,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_headphones_001",
         "prd_headphones_004",
+        "prd_headphones_001",
+        "prd_headphones_003",
         "prd_headphones_002",
-        "prd_headphones_009",
-        "prd_headphones_003"
+        "prd_headphones_009"
       ],
       "returned_total": 9,
       "suite": "challenge",
@@ -2452,9 +2450,9 @@
       "first_hit_rank": 2,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_smartphones_001",
         "prd_smartphones_003",
-        "prd_smartphones_002"
+        "prd_smartphones_002",
+        "prd_smartphones_001"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -2467,9 +2465,9 @@
       "returned_count_within_limit": true,
       "returned_product_ids": [
         "prd_smartphones_010",
-        "prd_smartphones_001",
         "prd_smartphones_003",
-        "prd_smartphones_002"
+        "prd_smartphones_002",
+        "prd_smartphones_001"
       ],
       "returned_total": 4,
       "suite": "challenge",
@@ -2555,8 +2553,8 @@
       "expect_empty": false,
       "expected_match_status": null,
       "expected_product_ids": [
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_004",
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_008",
         "prd_air_conditioners_010"
       ],
       "expected_total": 3,
@@ -2564,9 +2562,9 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_air_conditioners_010",
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_004"
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_010"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -2578,9 +2576,9 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_air_conditioners_010",
-        "prd_air_conditioners_001",
-        "prd_air_conditioners_004"
+        "prd_air_conditioners_002",
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_010"
       ],
       "returned_total": 3,
       "suite": "challenge",
@@ -2638,8 +2636,8 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_headphones_003",
-        "prd_headphones_001"
+        "prd_headphones_001",
+        "prd_headphones_003"
       ],
       "match_status_matches": true,
       "max_returned_items": null,
@@ -2651,8 +2649,8 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_headphones_003",
-        "prd_headphones_001"
+        "prd_headphones_001",
+        "prd_headphones_003"
       ],
       "returned_total": 2,
       "suite": "challenge",
@@ -3042,8 +3040,8 @@
       "first_hit_rank": 1,
       "hit_at_5": true,
       "hit_product_ids": [
-        "prd_smartphones_005",
         "prd_smartphones_003",
+        "prd_smartphones_005",
         "prd_smartphones_008"
       ],
       "match_status_matches": true,
@@ -3064,8 +3062,8 @@
       "reciprocal_rank": 1.0,
       "returned_count_within_limit": true,
       "returned_product_ids": [
-        "prd_smartphones_005",
         "prd_smartphones_003",
+        "prd_smartphones_005",
         "prd_smartphones_008"
       ],
       "returned_total": 3,
@@ -3097,16 +3095,16 @@
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_tablets_010",
-        "prd_tablets_006",
-        "prd_tablets_005"
+        "prd_tablets_005",
+        "prd_tablets_003"
       ],
       "match_status_matches": true,
       "max_returned_items": 3,
       "missed_product_ids": [
         "prd_tablets_001",
         "prd_tablets_002",
-        "prd_tablets_003",
         "prd_tablets_004",
+        "prd_tablets_006",
         "prd_tablets_007",
         "prd_tablets_008",
         "prd_tablets_009"
@@ -3119,8 +3117,8 @@
       "returned_count_within_limit": true,
       "returned_product_ids": [
         "prd_tablets_010",
-        "prd_tablets_006",
-        "prd_tablets_005"
+        "prd_tablets_005",
+        "prd_tablets_003"
       ],
       "returned_total": 3,
       "suite": "challenge",
@@ -3205,19 +3203,19 @@
       "hit_at_5": true,
       "hit_product_ids": [
         "prd_air_conditioners_001",
-        "prd_air_conditioners_009",
-        "prd_air_conditioners_008"
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_010"
       ],
       "match_status_matches": true,
       "max_returned_items": 3,
       "missed_product_ids": [
         "prd_air_conditioners_002",
         "prd_air_conditioners_003",
-        "prd_air_conditioners_004",
         "prd_air_conditioners_005",
         "prd_air_conditioners_006",
         "prd_air_conditioners_007",
-        "prd_air_conditioners_010"
+        "prd_air_conditioners_008",
+        "prd_air_conditioners_009"
       ],
       "outcome": "passed",
       "precision_at_5": 1.0,
@@ -3227,8 +3225,8 @@
       "returned_count_within_limit": true,
       "returned_product_ids": [
         "prd_air_conditioners_001",
-        "prd_air_conditioners_009",
-        "prd_air_conditioners_008"
+        "prd_air_conditioners_004",
+        "prd_air_conditioners_010"
       ],
       "returned_total": 3,
       "suite": "challenge",
@@ -3373,9 +3371,9 @@
     }
   ],
   "dataset": {
-    "dataset_version": "1.0.0",
+    "dataset_version": "1.1.0",
     "product_count": 300,
-    "products_sha256": "6828e695f485547310304ace3b3e7400d16ca2750d5e85e0848049b39e6172ec"
+    "products_sha256": "858cb4c2cd77b6abe5888282b6be85a66239fca151f96298bc0f4161388e76de"
   },
   "embedding": {
     "deployment": "text-embedding-3-large",
@@ -3387,7 +3385,7 @@
     "text_version": "name_description_v2"
   },
   "qdrant": {
-    "collection_name": "sales_bot_products_semantic_v2",
+    "collection_name": "sales_bot_products_1_1_0_858cb4c2",
     "distance": "Cosine",
     "indexed_count": 300,
     "payload_fields_match": true,
@@ -3420,13 +3418,13 @@
       "empty_case_count": 7,
       "empty_result_accuracy": 1.0,
       "exact_total_count_accuracy": 0.486486,
-      "failed": 1,
-      "hit_at_5": 0.966667,
+      "failed": 0,
+      "hit_at_5": 1.0,
       "match_status_accuracy": 1.0,
-      "mean_precision_at_5": 0.75,
-      "mean_reciprocal_rank": 0.763889,
-      "mean_top_5_coverage": 0.775556,
-      "partial": 12,
+      "mean_precision_at_5": 0.763333,
+      "mean_reciprocal_rank": 0.765,
+      "mean_top_5_coverage": 0.797778,
+      "partial": 13,
       "passed": 24
     }
   },

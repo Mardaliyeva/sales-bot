@@ -1,0 +1,131 @@
+[
+  {
+    "id": "selection_revision",
+    "utterance": "iPhone 17 Pro demişdim, fikrimi dəyişdim, iPhone 17 Pro Max olsun",
+    "plan": {
+      "query": "iPhone 17 Pro demişdim, fikrimi dəyişdim, iPhone 17 Pro Max olsun",
+      "operation": "lookup",
+      "entities": [
+        {"entity_id": "old", "raw_text": "iPhone 17 Pro", "state": "superseded", "evidence_text": "iPhone 17 Pro", "identifier_type": "model"},
+        {"entity_id": "current", "raw_text": "iPhone 17 Pro Max", "state": "selected", "supersedes_entity_id": "old", "evidence_text": "iPhone 17 Pro Max", "identifier_type": "model"}
+      ],
+      "selection_expression": {"kind": "entity_ref", "entity_id": "current"}
+    }
+  },
+  {
+    "id": "hard_exclusion",
+    "utterance": "Apple istəmirəm, gündəlik telefon göstər",
+    "plan": {
+      "query": "Apple istəmirəm, gündəlik telefon göstər",
+      "operation": "discover",
+      "entities": [],
+      "filter_expression": {"kind": "all_of", "expressions": [
+        {"kind": "predicate", "predicate": {"field": "category_id", "operator": "eq", "value": "smartphones", "strength": "hard", "evidence_text": "telefon"}},
+        {"kind": "predicate", "predicate": {"field": "brand", "operator": "not_eq", "value": "Apple", "strength": "hard", "evidence_text": "Apple istəmirəm"}}
+      ]}
+    }
+  },
+  {
+    "id": "brand_revision",
+    "utterance": "Apple fikrindən daşındım, Samsung seçək",
+    "plan": {
+      "query": "Apple fikrindən daşındım, Samsung seçək",
+      "operation": "discover",
+      "entities": [
+        {"entity_id": "old", "raw_text": "Apple", "state": "superseded", "evidence_text": "Apple", "identifier_type": "auto"},
+        {"entity_id": "current", "raw_text": "Samsung", "state": "selected", "supersedes_entity_id": "old", "evidence_text": "Samsung", "identifier_type": "auto"}
+      ],
+      "selection_expression": {"kind": "entity_ref", "entity_id": "current"},
+      "filter_expression": {"kind": "predicate", "predicate": {"field": "brand", "operator": "eq", "value": "Samsung", "strength": "hard", "evidence_text": "Samsung"}}
+    }
+  },
+  {
+    "id": "fallback",
+    "utterance": "iPhone alınmasa Samsung-a baxarıq",
+    "plan": {
+      "query": "iPhone alınmasa Samsung-a baxarıq",
+      "operation": "discover",
+      "entities": [
+        {"entity_id": "primary", "raw_text": "iPhone", "state": "selected", "evidence_text": "iPhone", "identifier_type": "auto"},
+        {"entity_id": "secondary", "raw_text": "Samsung", "state": "selected", "evidence_text": "Samsung", "identifier_type": "auto"}
+      ],
+      "selection_expression": {"kind": "fallback", "primary": {"kind": "entity_ref", "entity_id": "primary"}, "secondary": {"kind": "entity_ref", "entity_id": "secondary"}},
+      "filter_expression": {"kind": "predicate", "predicate": {"field": "category_id", "operator": "eq", "value": "smartphones", "strength": "hard", "evidence_text": "iPhone alınmasa Samsung-a baxarıq"}}
+    }
+  },
+  {
+    "id": "logical_or",
+    "utterance": "iPhone və Samsung modellərinə baxaq",
+    "plan": {
+      "query": "iPhone və Samsung modellərinə baxaq",
+      "operation": "discover",
+      "entities": [],
+      "filter_expression": {"kind": "all_of", "expressions": [
+        {"kind": "predicate", "predicate": {"field": "category_id", "operator": "eq", "value": "smartphones", "strength": "hard", "evidence_text": "iPhone və Samsung modellərinə baxaq"}},
+        {"kind": "any_of", "expressions": [
+          {"kind": "predicate", "predicate": {"field": "model_family", "operator": "eq", "value": "iPhone", "strength": "hard", "evidence_text": "iPhone"}},
+          {"kind": "predicate", "predicate": {"field": "brand", "operator": "eq", "value": "Samsung", "strength": "hard", "evidence_text": "Samsung"}}
+        ]}
+      ]}
+    }
+  },
+  {
+    "id": "double_negative_stock",
+    "utterance": "Stokda tapılmayanları çıxart",
+    "plan": {
+      "query": "Stokda tapılmayanları çıxart",
+      "operation": "discover",
+      "entities": [],
+      "filter_expression": {"kind": "predicate", "predicate": {"field": "in_stock", "operator": "eq", "value": true, "strength": "hard", "evidence_text": "Stokda tapılmayanları çıxart"}}
+    }
+  },
+  {
+    "id": "fact_not_filter",
+    "utterance": "iPhone 17 Pro 500-dən aşağıdırmı?",
+    "plan": {
+      "query": "iPhone 17 Pro 500-dən aşağıdırmı?",
+      "operation": "lookup",
+      "entities": [{"entity_id": "phone", "raw_text": "iPhone 17 Pro", "state": "selected", "evidence_text": "iPhone 17 Pro", "identifier_type": "model"}],
+      "selection_expression": {"kind": "entity_ref", "entity_id": "phone"},
+      "fact_questions": [{"field": "price", "operator": "lt", "value": 500, "unit": "AZN", "evidence_text": "500-dən aşağıdırmı"}]
+    }
+  },
+  {
+    "id": "hard_price_filter",
+    "utterance": "Telefon 500 AZN-dən aşağı olsun",
+    "plan": {
+      "query": "Telefon 500 AZN-dən aşağı olsun",
+      "operation": "discover",
+      "entities": [],
+      "filter_expression": {"kind": "all_of", "expressions": [
+        {"kind": "predicate", "predicate": {"field": "category_id", "operator": "eq", "value": "smartphones", "strength": "hard", "evidence_text": "Telefon"}},
+        {"kind": "predicate", "predicate": {"field": "price", "operator": "lt", "value": 500, "unit": "AZN", "strength": "hard", "evidence_text": "500 AZN-dən aşağı olsun"}}
+      ]}
+    }
+  },
+  {
+    "id": "comparison",
+    "utterance": "iPhone 17 Pro ilə Galaxy S25 Ultra-nı müqayisə et",
+    "plan": {
+      "query": "iPhone 17 Pro ilə Galaxy S25 Ultra-nı müqayisə et",
+      "operation": "compare",
+      "entities": [
+        {"entity_id": "left", "raw_text": "iPhone 17 Pro", "state": "selected", "evidence_text": "iPhone 17 Pro", "identifier_type": "model"},
+        {"entity_id": "right", "raw_text": "Galaxy S25 Ultra", "state": "selected", "evidence_text": "Galaxy S25 Ultra", "identifier_type": "model"}
+      ],
+      "selection_expression": {"kind": "any_of", "expressions": [{"kind": "entity_ref", "entity_id": "left"}, {"kind": "entity_ref", "entity_id": "right"}]},
+      "recommendation_requested": false
+    }
+  },
+  {
+    "id": "genuine_ambiguity",
+    "utterance": "O əvvəlki modeldən istəyirəm",
+    "plan": {
+      "query": "O əvvəlki modeldən istəyirəm",
+      "operation": "lookup",
+      "entities": [],
+      "needs_clarification": true,
+      "clarification_question": "Hansı əvvəlki modeli nəzərdə tutursunuz?"
+    }
+  }
+]

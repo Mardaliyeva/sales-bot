@@ -169,3 +169,29 @@ def test_alternative_cards_explain_missing_request_and_differences() -> None:
     assert presentation["title"] == "Samsung Future TV tapılmadı — yaxın alternativlər"
     assert presentation["requested_label"] == "Samsung Future TV"
     assert presentation["items"][0]["differences"] == ["Rəng fərqlidir: Qara"]
+
+
+def test_exact_conflict_presents_requested_product_separately() -> None:
+    requested = _item(1)
+    alternative = _item(2)
+    result = {
+        "status": "success",
+        "match_status": "exact_conflict",
+        "requested_label": "Samsung QN900D",
+        "strict_total": 0,
+        "total": 1,
+        "applied_filters": {"max_price": 500},
+        "requested_item": requested,
+        "constraint_conflicts": ["Qiymət büdcəni keçir: 1186.79 AZN"],
+        "recommended_product_id": alternative["product_id"],
+        "display_product_ids": [alternative["product_id"]],
+        "items": [alternative],
+    }
+
+    presentation = build_product_cards(result)
+
+    assert presentation is not None
+    assert presentation["result_kind"] == "exact_conflict"
+    assert presentation["requested_item"]["product_id"] == requested["product_id"]
+    assert presentation["items"][0]["product_id"] == alternative["product_id"]
+    assert presentation["constraint_conflicts"] == ["Qiymət büdcəni keçir: 1186.79 AZN"]
