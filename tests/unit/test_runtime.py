@@ -219,7 +219,11 @@ async def test_direct_answer_uses_no_tool(settings: object) -> None:
     trace = repository.completed["debug_trace"]
     assert trace["diagnosis"]["code"] == "catalog_not_checked"
     assert trace["diagnosis"]["data_status"] == "Yoxlanılmayıb"
-    assert trace["trace_version"] == 5
+    assert trace["trace_version"] == 6
+    assert trace["prompt"]["mode"] == "modular"
+    assert trace["prompt"]["active_phase"] == "tool"
+    assert trace["prompt"]["tool_char_reduction_percent"] >= 25
+    assert "ProductQueryPlan" in llm.calls[0]["messages"][0]["content"]
     assert trace["decision_explanation"]["basis"] == "direct_answer"
     assert trace["memory_transition"]["action"] == "preserve"
     assert repository.completed["session_memory"]["revision"] == 0
@@ -383,6 +387,8 @@ async def test_fourth_model_round_forces_final_answer_without_tools(settings: ob
     assert len(repository.tool_exchanges) == 3
     assert llm.calls[3]["tool_choice"] == "none"
     assert llm.calls[3]["tools"] is None
+    assert "Yekun cavab müqaviləsi" in llm.calls[3]["messages"][0]["content"]
+    assert "ProductQueryPlan müqaviləsi" not in llm.calls[3]["messages"][0]["content"]
     assert repository.completed is not None
     assert repository.completed["tool_count"] == 3
     assert repository.completed["model_rounds"] == 4
@@ -484,6 +490,8 @@ async def test_content_filter_returns_http_safe_completed_answer(settings: objec
 
     assert result.answer
     assert len(llm.calls) == 2
+    assert "Tool çağırmadan təhlükəsiz yekun cavab ver" in llm.calls[1]["messages"][0]["content"]
+    assert "ProductQueryPlan müqaviləsi" not in llm.calls[1]["messages"][0]["content"]
     assert repository.failed is None
     assert repository.completed is not None
     warnings = repository.completed["debug_trace"]["warnings"]

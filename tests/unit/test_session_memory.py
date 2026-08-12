@@ -477,7 +477,7 @@ def test_model_family_is_persisted_as_facet_anchor_and_reused_by_follow_up() -> 
     assert entity_evidence["canonical_memory_anchors"][0]["anchor_kind"] == "facet"
 
 
-def test_v2_predicate_backed_entity_is_accepted_only_for_same_canonical_facet() -> None:
+def test_v2_predicate_backed_entity_requires_typed_anchor_clarification() -> None:
     catalog = _catalog()
     first_memory = update_session_memory(
         SessionMemory(),
@@ -532,14 +532,15 @@ def test_v2_predicate_backed_entity_is_accepted_only_for_same_canonical_facet() 
         )
 
     compatible = compile_semantic_plan(follow_up(refs["model_family"]), catalog)
-    assert compatible.clarification is None
-    compatible_evidence = next(
-        item
-        for item in compatible.evidence_validation
-        if item["source"] == "entity:iphone_family"
-    )
-    assert compatible_evidence["legacy_predicate_entity_refs"] == [
-        refs["model_family"]
+    assert compatible.clarification is not None
+    assert "invalid_memory_reference" in compatible.clarification["reason"]
+    assert compatible.clarification["memory_issue"]["reference_type_mismatches"] == [
+        {
+            "source": "entity:iphone_family",
+            "memory_id": refs["model_family"],
+            "expected_kind": "entity",
+            "actual_kind": "predicate",
+        }
     ]
 
     unrelated = compile_semantic_plan(follow_up(refs["color_code"]), catalog)
@@ -857,7 +858,7 @@ def test_grounded_memory_removal_deletes_only_the_named_constraint() -> None:
     assert predicate_id in update.transition["removed_ids"]
 
 
-def test_alternatives_create_referenceable_pending_intent_for_follow_up() -> None:
+def test_pending_root_marks_follow_up_context_without_grounding_nested_facts() -> None:
     first_plan = {
         "query": "iPhone 19 göstər",
         "operation": "lookup",
@@ -901,49 +902,15 @@ def test_alternatives_create_referenceable_pending_intent_for_follow_up() -> Non
             "operation": "discover",
             "memory_action": "merge",
             "referenced_memory_ids": [pending_id],
-            "entities": [
-                {
-                    "entity_id": "old",
-                    "raw_text": "iPhone 19",
-                    "state": "superseded",
-                    "evidence_text": "iPhone 19",
-                    "identifier_type": "model",
-                    "memory_refs": [pending_id],
-                },
-                {
-                    "entity_id": "new",
-                    "raw_text": "Samsung",
-                    "state": "selected",
-                    "supersedes_entity_id": "old",
+            "filter_expression": {
+                "kind": "predicate",
+                "predicate": {
+                    "field": "brand",
+                    "operator": "eq",
+                    "value": "Samsung",
+                    "strength": "hard",
                     "evidence_text": "Samsung",
                 },
-            ],
-            "selection_expression": {"kind": "entity_ref", "entity_id": "new"},
-            "filter_expression": {
-                "kind": "all_of",
-                "expressions": [
-                    {
-                        "kind": "predicate",
-                        "predicate": {
-                            "field": "brand",
-                            "operator": "eq",
-                            "value": "Samsung",
-                            "strength": "hard",
-                            "evidence_text": "Samsung",
-                        },
-                    },
-                    {
-                        "kind": "predicate",
-                        "predicate": {
-                            "field": "category_id",
-                            "operator": "eq",
-                            "value": "smartphones",
-                            "strength": "hard",
-                            "evidence_text": "iPhone 19",
-                            "memory_refs": [pending_id],
-                        },
-                    },
-                ],
             },
             "context_memory": memory_context_payload(memory),
         }
@@ -953,7 +920,60 @@ def test_alternatives_create_referenceable_pending_intent_for_follow_up() -> Non
 
     assert compilation.clarification is None
     assert compilation.arguments[0].brand == "Samsung"
-    assert compilation.arguments[0].category_id == "smartphones"
+    assert compilation.arguments[0].category_id is None
+
+
+def test_pending_root_cannot_substitute_for_predicate_memory_id() -> None:
+    pending = update_session_memory(
+        SessionMemory(),
+        request_id="req-pending-root",
+        product_plan={"query": "olmayan model", "operation": "lookup"},
+        product_result={
+            "status": "success",
+            "match_status": "not_found",
+            "items": [],
+            "display_product_ids": [],
+            "constraint_conflicts": [],
+        },
+        document_arguments=None,
+        document_result=None,
+        max_bytes=8192,
+    ).memory
+    assert pending.pending_intent is not None
+    pending_id = pending.pending_intent.memory_id
+    assert pending_id
+    plan = ProductQueryPlan.model_validate(
+        {
+            "query": "Samsung göstər",
+            "operation": "discover",
+            "memory_action": "merge",
+            "referenced_memory_ids": [pending_id],
+            "filter_expression": {
+                "kind": "predicate",
+                "predicate": {
+                    "field": "brand",
+                    "operator": "eq",
+                    "value": "Samsung",
+                    "strength": "hard",
+                    "evidence_text": "Samsung",
+                    "memory_refs": [pending_id],
+                },
+            },
+            "context_memory": memory_context_payload(pending),
+        }
+    )
+
+    compilation = compile_semantic_plan(plan, _catalog())
+
+    assert compilation.clarification is not None
+    assert compilation.clarification["memory_issue"]["reference_type_mismatches"] == [
+        {
+            "source": "predicate:brand",
+            "memory_id": pending_id,
+            "expected_kind": "predicate",
+            "actual_kind": "pending_intent",
+        }
+    ]
 
 
 def test_not_found_pending_state_keeps_failed_constraint_for_later_revision() -> None:

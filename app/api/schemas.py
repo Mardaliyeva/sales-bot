@@ -83,6 +83,7 @@ class DebugTraceResponse(StrictModel):
     status: Literal["running", "completed", "failed"]
     model: dict[str, Any] = Field(default_factory=dict)
     runtime: dict[str, Any] = Field(default_factory=dict)
+    prompt: dict[str, Any] = Field(default_factory=dict)
     diagnosis: dict[str, Any] | None
     data_sources: dict[str, Any]
     timeline: list[dict[str, Any]]

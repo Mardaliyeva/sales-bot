@@ -284,12 +284,45 @@ class SemanticExpression(BaseModel):
 class FactQuestion(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    field: str = Field(min_length=1, max_length=100)
-    operator: SemanticOperator | None = None
-    value: str | int | float | bool | list[str] | list[int] | list[float] | None = None
-    unit: str | None = Field(default=None, max_length=30)
-    evidence_text: str = Field(min_length=1, max_length=300)
-    memory_refs: list[str] = Field(default_factory=list, max_length=5)
+    field: str = Field(
+        min_length=1,
+        max_length=100,
+        description=(
+            "One canonical catalog field explicitly asked about. Do not emit aliases or a second "
+            "field for the same fact"
+        ),
+    )
+    operator: SemanticOperator | None = Field(
+        default=None,
+        description=(
+            "Comparison operator when the user asks whether the fact satisfies a concrete "
+            "proposition; otherwise null"
+        ),
+    )
+    value: str | int | float | bool | list[str] | list[int] | list[float] | None = Field(
+        default=None,
+        description=(
+            "Compared value explicitly present in the question. It must accompany operator; "
+            "otherwise null"
+        ),
+    )
+    unit: str | None = Field(
+        default=None,
+        max_length=30,
+        description="Explicit unit for the compared value, if any",
+    )
+    evidence_text: str = Field(
+        min_length=1,
+        max_length=300,
+        description=(
+            "Shortest unchanged current-message span supporting the field and any operator/value"
+        ),
+    )
+    memory_refs: list[str] = Field(
+        default_factory=list,
+        max_length=5,
+        description="Only typed fact_question IDs from verified session memory",
+    )
 
 
 class MemoryRemoval(BaseModel):
@@ -308,14 +341,61 @@ class ProductQueryPlan(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    query: str = Field(min_length=1, max_length=500)
-    operation: SemanticOperation
-    entities: list[ProductEntity] = Field(default_factory=list, max_length=3)
-    selection_expression: SemanticExpression | None = None
-    filter_expression: SemanticExpression | None = None
-    preference_expression: SemanticExpression | None = None
-    fact_questions: list[FactQuestion] = Field(default_factory=list, max_length=20)
-    recommendation_requested: bool = False
+    query: str = Field(
+        min_length=1,
+        max_length=500,
+        description="The complete current user product request in its original language",
+    )
+    operation: SemanticOperation = Field(
+        description=(
+            "lookup for a concrete item/fact, discover for finding candidates including multiple "
+            "allowed selections, compare only for an explicit comparison between entities"
+        )
+    )
+    entities: list[ProductEntity] = Field(
+        default_factory=list,
+        max_length=3,
+        description=(
+            "Concrete catalog-selection mentions whose identity or relationship matters. Broad "
+            "allowed facet values may instead be predicates in filter_expression"
+        ),
+    )
+    selection_expression: SemanticExpression | None = Field(
+        default=None,
+        description=(
+            "Relationships among entities only. When entities are present, every selection branch "
+            "is composed only of entity_ref nodes; never place catalog predicates beside entity_ref"
+        ),
+    )
+    filter_expression: SemanticExpression | None = Field(
+        default=None,
+        description=(
+            "Hard catalog constraints shared by the applicable selection branches. Contains "
+            "predicate logic, not duplicate entity selection or ranking preferences"
+        ),
+    )
+    preference_expression: SemanticExpression | None = Field(
+        default=None,
+        description=(
+            "Soft ranking preferences only. It must not contain required conditions or duplicate "
+            "selection/filter meaning"
+        ),
+    )
+    fact_questions: list[FactQuestion] = Field(
+        default_factory=list,
+        max_length=20,
+        description=(
+            "Only catalog facts explicitly requested about an item. A proposition question keeps "
+            "its operator/value/unit here and does not become a filter"
+        ),
+    )
+    recommendation_requested: bool = Field(
+        default=False,
+        description=(
+            "True only when the user explicitly asks the assistant to choose or recommend, not for "
+            "plain lookup, browsing, or comparison"
+        ),
+    )
     memory_action: MemoryAction = Field(
         default="replace",
         description=(

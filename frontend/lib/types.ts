@@ -223,6 +223,18 @@ export type DebugTraceResponse = {
   message_id: string | null;
   status: "running" | "completed" | "failed";
   model: Record<string, unknown>;
+  runtime?: Record<string, unknown>;
+  prompt?: {
+    mode?: "modular" | "legacy";
+    active_phase?: "tool" | "response" | "safe_final";
+    versions?: Record<string, string>;
+    phase_hashes?: Record<string, string>;
+    phase_chars?: Record<string, number>;
+    phase_token_estimates?: Record<string, number>;
+    legacy_chars?: number;
+    tool_char_reduction_percent?: number;
+    response_char_reduction_percent?: number;
+  };
   diagnosis: DebugDiagnosis | null;
   data_sources: Record<string, Record<string, unknown>>;
   timeline: DebugTimelineEvent[];

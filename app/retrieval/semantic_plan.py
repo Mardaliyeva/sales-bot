@@ -371,11 +371,25 @@ def validate_evidence(
             bool(normalize_text(evidence)) and normalize_text(evidence) in query
         )
         details = entity_reference_details.get(source, {})
+        expected_kind = (
+            "entity"
+            if source.startswith("entity:")
+            else "predicate"
+            if source.startswith("predicate:")
+            else "fact_question"
+            if source.startswith("fact_question:")
+            else None
+        )
         memory_valid = (
             bool(details.get("typed_memory_valid"))
-            if source.startswith("entity:")
+            if expected_kind == "entity"
             else bool(memory_refs)
-            and all(memory_id in known_memory_ids for memory_id in memory_refs)
+            and expected_kind is not None
+            and all(
+                memory_id in known_memory_ids
+                and memory_items[memory_id].get("kind") == expected_kind
+                for memory_id in memory_refs
+            )
         )
         result.append({
             "source": source,
@@ -421,9 +435,18 @@ def validate_memory_references(
     mutated_inherited_predicates: list[str] = []
     invalid_inherited_entities: list[str] = []
     legacy_predicate_entity_refs: list[str] = []
+    reference_type_mismatches: list[dict[str, str]] = []
     query = normalize_text(plan.query)
     resolution_by_id = {item.entity_id: item for item in resolutions}
     for entity in plan.entities:
+        reference_type_mismatches.extend(
+            _reference_type_mismatches(
+                entity.memory_refs,
+                items,
+                expected_kind="entity",
+                source=f"entity:{entity.entity_id}",
+            )
+        )
         normalized_evidence = normalize_text(entity.evidence_text)
         if normalized_evidence and normalized_evidence in query:
             continue
@@ -437,6 +460,14 @@ def validate_memory_references(
             invalid_inherited_entities.append(entity.entity_id)
     for expression in _plan_expressions(plan):
         for predicate in iter_predicates(expression):
+            reference_type_mismatches.extend(
+                _reference_type_mismatches(
+                    predicate.memory_refs,
+                    items,
+                    expected_kind="predicate",
+                    source=f"predicate:{predicate.field}",
+                )
+            )
             normalized_evidence = normalize_text(predicate.evidence_text)
             current_evidence = bool(normalized_evidence) and normalized_evidence in query
             for memory_id in predicate.memory_refs:
@@ -455,6 +486,14 @@ def validate_memory_references(
                     mutated_inherited_predicates.append(memory_id)
     invalid_inherited_fact_questions = []
     for question in plan.fact_questions:
+        reference_type_mismatches.extend(
+            _reference_type_mismatches(
+                question.memory_refs,
+                items,
+                expected_kind="fact_question",
+                source=f"fact_question:{question.field}",
+            )
+        )
         normalized = normalize_text(question.evidence_text)
         if normalized and normalized in query:
             continue
@@ -478,6 +517,7 @@ def validate_memory_references(
         and not mutated_inherited_predicates
         and not invalid_inherited_entities
         and not invalid_inherited_fact_questions
+        and not reference_type_mismatches
         and not action_without_memory
     ):
         return None
@@ -490,8 +530,28 @@ def validate_memory_references(
         "invalid_inherited_entities": sorted(set(invalid_inherited_entities)),
         "invalid_inherited_fact_questions": sorted(set(invalid_inherited_fact_questions)),
         "legacy_predicate_entity_refs": sorted(set(legacy_predicate_entity_refs)),
+        "reference_type_mismatches": reference_type_mismatches,
         "memory_action": plan.memory_action,
     }
+
+
+def _reference_type_mismatches(
+    memory_ids: list[str],
+    items: dict[str, dict[str, Any]],
+    *,
+    expected_kind: str,
+    source: str,
+) -> list[dict[str, str]]:
+    return [
+        {
+            "source": source,
+            "memory_id": memory_id,
+            "expected_kind": expected_kind,
+            "actual_kind": str(items[memory_id].get("kind") or "unknown"),
+        }
+        for memory_id in memory_ids
+        if memory_id in items and items[memory_id].get("kind") != expected_kind
+    ]
 
 
 def _entity_memory_reference_match(
@@ -501,8 +561,8 @@ def _entity_memory_reference_match(
 ) -> tuple[bool, list[str], list[dict[str, Any]]]:
     """Validate inherited entity references against their canonical catalog meaning.
 
-    V3 entity anchors are preferred. V2 predicate-backed entities are accepted only when
-    local catalog resolution proves an exact field/value match.
+    Only typed entity anchors may ground inherited entities. Pending roots and predicate IDs
+    describe different memory concepts and cannot substitute for an entity anchor.
     """
 
     legacy_refs: list[str] = []
@@ -538,28 +598,6 @@ def _entity_memory_reference_match(
                 "facet_field": item.get("facet_field"),
                 "facet_value": item.get("facet_value"),
             })
-        elif (
-            kind == "predicate"
-            and resolution is not None
-            and resolution.status == "constraint_entity"
-            and resolution.constraint_field == item.get("field")
-            and _canonical_value_equal(resolution.constraint_value, item.get("value"))
-        ):
-            matched = True
-            legacy_refs.append(memory_id)
-            anchors.append({
-                "memory_id": memory_id,
-                "anchor_kind": "legacy_predicate",
-                "facet_field": item.get("field"),
-                "facet_value": item.get("value"),
-            })
-        elif kind == "pending_intent":
-            pending_values = {
-                normalize_text(str(raw_entity))
-                for raw_entity in item.get("raw_entities", [])
-            }
-            if normalize_text(entity.raw_text) in pending_values:
-                matched = True
     return matched, legacy_refs, anchors
 
 

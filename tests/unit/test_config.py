@@ -64,12 +64,14 @@ def test_session_memory_context_defaults_on_outside_production(app_env: str) -> 
     settings = _settings(app_env=app_env)
 
     assert settings.session_memory_context_enabled is True
+    assert settings.modular_prompt_enabled is True
 
 
 def test_session_memory_context_defaults_off_in_production() -> None:
     settings = _settings(app_env="production")
 
     assert settings.session_memory_context_enabled is False
+    assert settings.modular_prompt_enabled is False
 
 
 def test_explicit_session_memory_context_setting_overrides_environment_default() -> None:
@@ -79,6 +81,15 @@ def test_explicit_session_memory_context_setting_overrides_environment_default()
     assert _settings(
         app_env="production", session_memory_context_enabled=True
     ).session_memory_context_enabled is True
+
+
+def test_explicit_modular_prompt_setting_overrides_environment_default() -> None:
+    assert _settings(
+        app_env="development", modular_prompt_enabled=False
+    ).modular_prompt_enabled is False
+    assert _settings(
+        app_env="production", modular_prompt_enabled=True
+    ).modular_prompt_enabled is True
 
 
 def test_vector_service_urls_must_use_https() -> None:

@@ -43,7 +43,7 @@ RUNTIME_VECTOR_TIMEOUT_SECONDS = 4.0
 STARTUP_VECTOR_CHECK_TIMEOUT_SECONDS = 5.0
 
 logger = logging.getLogger(__name__)
-API_SCHEMA_VERSION = "2.5"
+API_SCHEMA_VERSION = "2.6"
 
 
 async def _scrub_expired_session_contexts(

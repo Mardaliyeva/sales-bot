@@ -12,13 +12,24 @@ const candidates = Array.from({ length: 12 }, (_, index) => ({
 }));
 
 const trace: DebugTraceResponse = {
-  trace_version: 5,
+  trace_version: 6,
   detail_level: "full",
   request_id: "22222222-2222-4222-8222-222222222222",
   session_id: "11111111-1111-4111-8111-111111111111",
   message_id: "33333333-3333-4333-8333-333333333333",
   status: "completed",
   model: { provider: "azure_openai", deployment: "gpt-test" },
+  prompt: {
+    mode: "modular",
+    active_phase: "response",
+    versions: { planner: "planner_v2", response: "response_v2" },
+    phase_hashes: { tool: "tool-hash", response: "response-hash" },
+    phase_chars: { tool: 4989, response: 1755 },
+    phase_token_estimates: { tool: 1248, response: 439 },
+    legacy_chars: 10685,
+    tool_char_reduction_percent: 53.3,
+    response_char_reduction_percent: 83.6,
+  },
   diagnosis: {
     code: "products_found",
     title: "Uyğun məhsullar tapıldı",
@@ -107,6 +118,9 @@ describe("DebugDrawer", () => {
     expect(screen.getByText("Sonrakı mesaj üçün söhbət konteksti")).toBeTruthy();
     expect(screen.getByText(/aktiv məhsul məqsədi discover əməliyyatıdır/)).toBeTruthy();
     expect(screen.getByText("confirmed")).toBeTruthy();
+    expect(screen.getByText("Prompt modulları")).toBeTruthy();
+    expect(screen.getByText("modular")).toBeTruthy();
+    expect(screen.getByText("53.3%")).toBeTruthy();
     expect(screen.getByText("Texniki detallar")).toBeTruthy();
     expect(screen.queryByText("Laptop 12")).toBeNull();
 

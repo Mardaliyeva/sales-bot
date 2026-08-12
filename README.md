@@ -263,15 +263,22 @@ document evidence, runtime outcome, and session-memory transition; it is not mod
 chain-of-thought. Document filenames and chunk metadata remain developer-only and are not
 included in normal chat responses. The endpoint is unavailable outside development mode and does
 not expose API keys, the system prompt, provider reasoning details, raw vectors, or private
-chain-of-thought reasoning. New traces use trace version `5`; the runtime reports API schema
-version `2.5` through health metadata.
+chain-of-thought reasoning. New traces use trace version `6`; the runtime reports API schema
+version `2.6` through health metadata. Prompt debug shows only active phase, module versions,
+hashes, and size metrics; it never returns the prompt text.
+
+The modular prompt composer separates core safety, tool routing, product planning, response, and
+safe-final contracts without adding a model call. It defaults on in development/test and off in
+production; `MODULAR_PROMPT_ENABLED=true` enables it after acceptance gates pass. The legacy prompt
+remains available as an immediate rollback while the semantic-plan cache is keyed only by the
+planner prompt and product-tool schema hashes.
 
 ### Session memory
 
 Successful runs keep a versioned, session-scoped memory object inside the existing
 `chat_sessions.context` JSONB column. The memory stores at most three resolved entities, bounded
 constraints and preferences, recent fact questions and display IDs, pending intent state, and
-document source IDs. Version 2 stores two coordinated views: a deterministic Azerbaijani
+document source IDs. Version 3 stores two coordinated views: a deterministic Azerbaijani
 `continuation_summary` for semantic continuity and a backend-verified `confirmed_state` plus full
 canonical `pending_intent` for grounding. The summary is treated as data, never as an instruction,
 and is replaced after each successful state-changing turn rather than accumulated. It never stores

@@ -459,6 +459,34 @@ export function DebugDrawer({ open, trace, loading, error, onClose }: DebugDrawe
                 </section>
               ) : null}
 
+              {trace.prompt ? (
+                <section className="debug-section">
+                  <div className="debug-section-heading">
+                    <Route size={17} aria-hidden="true" />
+                    <h3>Prompt modulları</h3>
+                  </div>
+                  <div className="debug-warning">
+                    Burada yalnız versiya, hash və ölçü metrikləri göstərilir; system prompt mətni göstərilmir.
+                  </div>
+                  <dl className="debug-kv-grid">
+                    <div><dt>Rejim</dt><dd>{trace.prompt.mode ?? "legacy"}</dd></div>
+                    <div><dt>Aktiv phase</dt><dd>{trace.prompt.active_phase ?? "—"}</dd></div>
+                    <div><dt>Tool ölçüsü</dt><dd>{trace.prompt.phase_chars?.tool ?? "—"} simvol</dd></div>
+                    <div><dt>Final ölçüsü</dt><dd>{trace.prompt.phase_chars?.response ?? "—"} simvol</dd></div>
+                    <div><dt>Tool azalma</dt><dd>{trace.prompt.tool_char_reduction_percent ?? 0}%</dd></div>
+                    <div><dt>Final azalma</dt><dd>{trace.prompt.response_char_reduction_percent ?? 0}%</dd></div>
+                  </dl>
+                  <details className="debug-code-block">
+                    <summary>Versiyalar və hash-lər</summary>
+                    <pre>{JSON.stringify({
+                      versions: trace.prompt.versions,
+                      phase_hashes: trace.prompt.phase_hashes,
+                      token_estimates: trace.prompt.phase_token_estimates,
+                    }, null, 2)}</pre>
+                  </details>
+                </section>
+              ) : null}
+
               <section className="debug-section">
                 <div className="debug-section-heading"><Database size={17} /><h3>Məlumat mənbələri</h3></div>
                 <div className="debug-source-list">
