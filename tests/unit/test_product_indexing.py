@@ -220,3 +220,29 @@ def test_filtered_search_only_returns_matching_products(catalog_path: object) ->
     assert len(candidates) == 10
     assert all(hit.payload["category_id"] == "smartphones" for hit in hits)
     assert all(hit.payload["brand"] == "Apple" for hit in hits)
+
+
+def test_ordered_candidates_use_numeric_payload_order_without_catalog_scan(
+    catalog_path: object,
+) -> None:
+    catalog = ProductCatalog(catalog_path)  # type: ignore[arg-type]
+    catalog.load()
+    store = _local_store()
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            index_catalog(catalog, FakeEmbeddings(), store)
+        args = ProductSearchArguments(query="smartfon", category_id="smartphones")
+
+        hits = store.ordered_candidates(
+            args,
+            field="display_size_in",
+            direction="maximize",
+            candidate_limit=20,
+        )
+    finally:
+        store.close()
+
+    values = [float(hit.payload["display_size_in"]) for hit in hits]
+    assert len(hits) == 20
+    assert values == sorted(values, reverse=True)

@@ -212,6 +212,7 @@ function RetrievalDetails({ retrieval }: { retrieval: DebugRetrieval }) {
         <div><dt>Filterdən keçən</dt><dd>{retrieval.filtered_count}</dd></div>
         <div><dt>Yekun total</dt><dd>{retrieval.total}</dd></div>
         <div><dt>JSON-dan götürülən</dt><dd>{hydratedProductIds.length}</dd></div>
+        <div><dt>Directional ranking</dt><dd>{retrieval.ranking_mode ?? "none"}</dd></div>
       </dl>
       <div className="debug-code-block">
         <span>Tool sorğusu</span>
@@ -232,6 +233,28 @@ function RetrievalDetails({ retrieval }: { retrieval: DebugRetrieval }) {
           <span>Alternativ mərhələləri</span>
           <pre>{JSON.stringify(retrieval.alternative_stages, null, 2)}</pre>
         </div>
+      ) : null}
+      {retrieval.ranking_objectives?.length ? (
+        <details className="debug-code-block">
+          <summary>Keyfiyyət məqsədləri və namizəd zolaqları</summary>
+          <pre>{JSON.stringify({
+            objectives: retrieval.ranking_objectives,
+            candidate_lanes: retrieval.candidate_generation_lanes,
+            product_scores: retrieval.ranking_components,
+          }, null, 2)}</pre>
+        </details>
+      ) : null}
+      {retrieval.grounded_semantic_plan ? (
+        <details className="debug-code-block">
+          <summary>Grounded semantic plan və doğrulama</summary>
+          <pre>{JSON.stringify({
+            raw_plan: retrieval.raw_semantic_plan,
+            grounded_plan: retrieval.grounded_semantic_plan,
+            numeric_provenance: retrieval.numeric_provenance,
+            field_capabilities: retrieval.field_capability_resolution,
+            corrections: retrieval.plan_corrections,
+          }, null, 2)}</pre>
+        </details>
       ) : null}
       {retrieval.exact_filter_conflict ? (
         <div className="debug-warning">

@@ -43,7 +43,7 @@ RUNTIME_VECTOR_TIMEOUT_SECONDS = 4.0
 STARTUP_VECTOR_CHECK_TIMEOUT_SECONDS = 5.0
 
 logger = logging.getLogger(__name__)
-API_SCHEMA_VERSION = "2.6"
+API_SCHEMA_VERSION = "2.7"
 
 
 async def _scrub_expired_session_contexts(
@@ -244,6 +244,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             "git_revision": _git_revision(),
             "api_schema_version": API_SCHEMA_VERSION,
             "catalog_checksum": catalog.manifest["checksums"]["products_sha256"],
+            "field_capability_checksum": catalog.field_capability_checksum,
             "catalog_dataset_version": catalog.manifest["dataset_version"],
             "active_collection": settings.qdrant_collection_name,
             "embedding_deployment": settings.azure_embedding_model,
@@ -260,6 +261,7 @@ def create_app(settings_override: Settings | None = None) -> FastAPI:
             alternative_min_score=settings.alternative_min_score,
             entity_resolution_min_score=settings.entity_resolution_min_score,
             entity_resolution_margin=settings.entity_resolution_margin,
+            directional_ranking_enabled=bool(settings.directional_ranking_enabled),
         )
         document_search = QdrantDocumentSearch(
             embeddings,

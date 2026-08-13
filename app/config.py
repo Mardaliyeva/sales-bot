@@ -67,6 +67,7 @@ class Settings(BaseSettings):
     session_memory_context_enabled: bool | None = None
     session_memory_max_bytes: int = Field(default=8192, ge=1024, le=32768)
     modular_prompt_enabled: bool | None = None
+    directional_ranking_enabled: bool | None = None
     llm_timeout_seconds: float = Field(default=30, gt=0, le=120)
     tool_timeout_seconds: float = Field(default=10, gt=0, le=60)
 
@@ -81,6 +82,8 @@ class Settings(BaseSettings):
             self.session_memory_context_enabled = non_production
         if self.modular_prompt_enabled is None:
             self.modular_prompt_enabled = non_production
+        if self.directional_ranking_enabled is None:
+            self.directional_ranking_enabled = non_production
         return self
 
     @field_validator("database_url", "test_database_url")

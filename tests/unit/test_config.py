@@ -57,6 +57,7 @@ def test_optional_vector_services_are_normalized() -> None:
     assert settings.entity_resolution_min_score == 0.62
     assert settings.entity_resolution_margin == 0.06
     assert settings.session_context_scrub_interval_seconds == 900
+    assert settings.directional_ranking_enabled is True
 
 
 @pytest.mark.parametrize("app_env", ["development", "test", "testing"])
@@ -72,6 +73,7 @@ def test_session_memory_context_defaults_off_in_production() -> None:
 
     assert settings.session_memory_context_enabled is False
     assert settings.modular_prompt_enabled is False
+    assert settings.directional_ranking_enabled is False
 
 
 def test_explicit_session_memory_context_setting_overrides_environment_default() -> None:
@@ -90,6 +92,15 @@ def test_explicit_modular_prompt_setting_overrides_environment_default() -> None
     assert _settings(
         app_env="production", modular_prompt_enabled=True
     ).modular_prompt_enabled is True
+
+
+def test_explicit_directional_ranking_setting_overrides_environment_default() -> None:
+    assert _settings(
+        app_env="development", directional_ranking_enabled=False
+    ).directional_ranking_enabled is False
+    assert _settings(
+        app_env="production", directional_ranking_enabled=True
+    ).directional_ranking_enabled is True
 
 
 def test_vector_service_urls_must_use_https() -> None:

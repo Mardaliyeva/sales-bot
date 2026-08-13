@@ -387,6 +387,37 @@ class QdrantProductStore:
         hits.sort(key=lambda hit: (-hit.score, hit.product_id))
         return hits[:candidate_limit]
 
+    def ordered_candidates(
+        self,
+        args: ProductSearchArguments,
+        *,
+        field: str,
+        direction: str,
+        candidate_limit: int = 20,
+    ) -> list[VectorSearchHit]:
+        key = {
+            "price": "sale_price",
+            "stock_status": "in_stock",
+        }.get(field, field)
+        schema = PAYLOAD_INDEXES.get(key)
+        if schema not in {
+            models.PayloadSchemaType.INTEGER,
+            models.PayloadSchemaType.FLOAT,
+        }:
+            raise VectorStoreError(f"Sıralana bilməyən Qdrant payload field-i: {field}")
+        order_direction = (
+            models.Direction.DESC if direction == "maximize" else models.Direction.ASC
+        )
+        records, _ = self.client.scroll(
+            collection_name=self.collection_name,
+            scroll_filter=self.build_filter(args, include_identifiers=False),
+            limit=max(candidate_limit, args.limit),
+            order_by=models.OrderBy(key=key, direction=order_direction),
+            with_payload=True,
+            with_vectors=False,
+        )
+        return [self._record_to_hit(record, score=0.0) for record in records[:candidate_limit]]
+
     def status(
         self,
         expected_product_ids: Sequence[str],

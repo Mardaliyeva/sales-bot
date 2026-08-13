@@ -54,6 +54,14 @@ class MemoryFactQuestion(MemoryModel):
     unit: str | None = Field(default=None, max_length=30)
 
 
+class MemoryRankingObjective(MemoryModel):
+    memory_id: str
+    field: str = Field(max_length=100)
+    direction: Literal["maximize", "minimize"]
+    priority: Literal["primary", "normal", "inferred"]
+    origin: Literal["explicit", "inferred", "memory"]
+
+
 class ProductMemoryState(MemoryModel):
     operation: str | None = Field(default=None, max_length=30)
     entities: list[MemoryEntity] = Field(default_factory=list, max_length=3)
@@ -61,6 +69,10 @@ class ProductMemoryState(MemoryModel):
     preferences: list[MemoryPredicate] = Field(default_factory=list, max_length=20)
     selection_expression: dict[str, Any] | None = None
     fact_questions: list[MemoryFactQuestion] = Field(default_factory=list, max_length=20)
+    ranking_objectives: list[MemoryRankingObjective] = Field(
+        default_factory=list,
+        max_length=3,
+    )
     last_fact_fields: list[str] = Field(default_factory=list, max_length=20)
     display_product_ids: list[str] = Field(default_factory=list, max_length=3)
     recommended_product_id: str | None = None
@@ -90,7 +102,7 @@ class DocumentMemoryState(MemoryModel):
 
 
 class SessionMemory(MemoryModel):
-    version: int = 3
+    version: int = 4
     revision: int = Field(default=0, ge=0)
     last_request_id: str | None = None
     continuation_summary: str = Field(default="", max_length=1500)
@@ -128,8 +140,8 @@ def load_session_memory(context: dict[str, Any] | None) -> SessionMemory:
         return SessionMemory()
     try:
         loaded = SessionMemory.model_validate(raw)
-        if loaded.version < 3:
-            loaded = loaded.model_copy(update={"version": 3})
+        if loaded.version < 4:
+            loaded = loaded.model_copy(update={"version": 4})
         return loaded
     except ValidationError:
         return SessionMemory()
@@ -198,6 +210,10 @@ def _product_context_payload(product: ProductMemoryState) -> dict[str, Any]:
             item.model_dump(mode="json", exclude_none=True)
             for item in product.fact_questions
         ],
+        "ranking_objectives": [
+            item.model_dump(mode="json", exclude_none=True)
+            for item in product.ranking_objectives
+        ],
         "last_fact_fields": list(product.last_fact_fields),
         "display_product_ids": list(product.display_product_ids),
         "recommended_product_id": product.recommended_product_id,
@@ -242,6 +258,12 @@ def _add_state_references(
             "kind": "fact_question",
             "scope": scope,
             **question.model_dump(mode="json", exclude_none=True),
+        }
+    for objective in state.ranking_objectives:
+        references[objective.memory_id] = {
+            "kind": "ranking_objective",
+            "scope": scope,
+            **objective.model_dump(mode="json", exclude_none=True),
         }
 
 
@@ -560,6 +582,9 @@ def _product_state_from_run(
     hard = _memory_predicates(plan.get("filter_expression"), "hard")
     preferences = _memory_predicates(plan.get("preference_expression"), "preference")
     fact_questions = _memory_fact_questions(plan.get("fact_questions", []))
+    ranking_objectives = _memory_ranking_objectives(
+        result.get("ranking_objectives", plan.get("ranking_objectives", []))
+    )
     fact_fields = [item.field for item in fact_questions]
     display_ids = [str(item) for item in result.get("display_product_ids", []) if item][:3]
     hard = hard[:20]
@@ -571,6 +596,7 @@ def _product_state_from_run(
         preferences=preferences,
         selection_expression=_strip_expression(plan.get("selection_expression")),
         fact_questions=fact_questions,
+        ranking_objectives=ranking_objectives,
         last_fact_fields=list(dict.fromkeys(fact_fields)),
         display_product_ids=display_ids,
         recommended_product_id=(
@@ -616,6 +642,9 @@ def _merge_product_state(
     entities = [item for item in before.entities if item.memory_id not in removed]
     constraints = [item for item in before.hard_constraints if item.memory_id not in removed]
     preferences = [item for item in before.preferences if item.memory_id not in removed]
+    ranking_objectives = [
+        item for item in before.ranking_objectives if item.memory_id not in removed
+    ]
 
     entities = _merge_entities(entities, current.entities, limit=3)
     constraints = _merge_predicates(constraints, current.hard_constraints, limit=20)
@@ -624,6 +653,11 @@ def _merge_product_state(
         current.preferences,
         limit=max(0, 20 - len(constraints)),
     )
+    ranking_objectives = _merge_ranking_objectives(
+        ranking_objectives,
+        current.ranking_objectives,
+        limit=3,
+    )
     return ProductMemoryState(
         operation=current.operation or before.operation,
         entities=entities,
@@ -631,6 +665,7 @@ def _merge_product_state(
         preferences=preferences,
         selection_expression=current.selection_expression or before.selection_expression,
         fact_questions=current.fact_questions or before.fact_questions,
+        ranking_objectives=ranking_objectives,
         last_fact_fields=current.last_fact_fields or before.last_fact_fields,
         display_product_ids=current.display_product_ids,
         recommended_product_id=current.recommended_product_id,
@@ -694,6 +729,14 @@ def _build_product_continuation_summary(
         parts.append(
             "Üstünlüklər: "
             + "; ".join(_summary_predicate(item) for item in state.preferences[:10])
+        )
+    if state.ranking_objectives:
+        parts.append(
+            "İstiqamətli üstünlüklər: "
+            + "; ".join(
+                _summary_ranking_objective(item)
+                for item in state.ranking_objectives[:3]
+            )
         )
     if state.last_fact_fields:
         parts.append(f"Son soruşulan fakt sahələri: {', '.join(state.last_fact_fields[:10])}")
@@ -775,6 +818,16 @@ def _summary_predicate(predicate: MemoryPredicate) -> str:
     )
 
 
+def _summary_ranking_objective(objective: MemoryRankingObjective) -> str:
+    direction = (
+        "böyük/yüksək dəyərlər öncə"
+        if objective.direction == "maximize"
+        else "kiçik/aşağı dəyərlər öncə"
+    )
+    origin = "ehtimal" if objective.origin == "inferred" else "istifadəçi seçimi"
+    return f"{objective.field}: {direction} ({origin})"
+
+
 def _summary_join(values: list[str]) -> str:
     clean = list(dict.fromkeys(value.strip() for value in values if value.strip()))
     if len(clean) <= 1:
@@ -788,6 +841,7 @@ def _has_product_state(state: ProductMemoryState) -> bool:
         or state.entities
         or state.hard_constraints
         or state.preferences
+        or state.ranking_objectives
         or state.display_product_ids
     )
 
@@ -839,6 +893,26 @@ def _memory_predicates(expression: Any, expected_strength: str) -> list[MemoryPr
             )
         )
     return result
+
+
+def _memory_ranking_objectives(value: Any) -> list[MemoryRankingObjective]:
+    result: list[MemoryRankingObjective] = []
+    for item in value if isinstance(value, list) else []:
+        if not isinstance(item, dict) or not item.get("field"):
+            continue
+        canonical = {
+            "field": str(item.get("field"))[:100],
+            "direction": str(item.get("direction") or "maximize"),
+            "priority": str(item.get("priority") or "normal"),
+            "origin": str(item.get("origin") or "explicit"),
+        }
+        result.append(
+            MemoryRankingObjective(
+                memory_id=_memory_id("ranking", canonical),
+                **canonical,
+            )
+        )
+    return result[:3]
 
 
 def _iter_predicate_dicts(expression: Any) -> list[dict[str, Any]]:
@@ -913,6 +987,26 @@ def _merge_predicates(
     return _merge_by_id(retained, current, limit=limit)
 
 
+def _merge_ranking_objectives(
+    existing: list[MemoryRankingObjective],
+    current: list[MemoryRankingObjective],
+    *,
+    limit: int,
+) -> list[MemoryRankingObjective]:
+    previous_by_shape = {
+        (item.field, item.direction, item.priority): item for item in existing
+    }
+    current = [
+        previous_by_shape.get((item.field, item.direction, item.priority), item)
+        if item.origin == "memory"
+        else item
+        for item in current
+    ]
+    current_fields = {item.field for item in current}
+    retained = [item for item in existing if item.field not in current_fields]
+    return _merge_by_id(retained, current, limit=limit)
+
+
 def _fit_memory(memory: SessionMemory, *, max_bytes: int) -> SessionMemory:
     current = memory.model_copy(deep=True)
     if _memory_size(current) > max_bytes and current.continuation_summary:
@@ -940,6 +1034,14 @@ def _fit_memory(memory: SessionMemory, *, max_bytes: int) -> SessionMemory:
     if current.pending_intent is not None:
         while _memory_size(current) > max_bytes and current.pending_intent.state.preferences:
             current.pending_intent.state.preferences.pop()
+    while _memory_size(current) > max_bytes and current.product.ranking_objectives:
+        current.product.ranking_objectives.pop()
+    if current.pending_intent is not None:
+        while (
+            _memory_size(current) > max_bytes
+            and current.pending_intent.state.ranking_objectives
+        ):
+            current.pending_intent.state.ranking_objectives.pop()
     while _memory_size(current) > max_bytes and current.product.constraint_conflicts:
         current.product.constraint_conflicts.pop()
     if current.pending_intent is not None:

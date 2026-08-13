@@ -53,6 +53,7 @@ class FakeStore:
         self.filtered_count = filtered_count
         self.error = error
         self.candidate_limits: list[int] = []
+        self.ordered_calls: list[tuple[str, str, int]] = []
         self.semantic_scores: dict[str, float] = {}
 
     def count_candidates(self, args: ProductSearchArguments) -> int:
@@ -85,6 +86,32 @@ class FakeStore:
             for rank, product_id in enumerate(self.semantic_ids)
             if product_id in matching
         ][:candidate_limit]
+
+    def ordered_candidates(
+        self,
+        args: ProductSearchArguments,
+        *,
+        field: str,
+        direction: str,
+        candidate_limit: int = 20,
+    ) -> list[VectorSearchHit]:
+        self.ordered_calls.append((field, direction, candidate_limit))
+        matching = self._matching_ids(args)
+        key = "sale_price" if field == "price" else field
+
+        def value(product_id: str) -> float:
+            payload = self._hit(product_id, 0.0).payload
+            candidate = payload.get(key)
+            return float(candidate) if isinstance(candidate, (int, float)) else float("-inf")
+
+        return [
+            self._hit(product_id, 0.0)
+            for product_id in sorted(
+                matching,
+                key=value,
+                reverse=direction == "maximize",
+            )[:candidate_limit]
+        ]
 
     def _matching_ids(self, args: ProductSearchArguments) -> list[str]:
         matched: list[str] = []
@@ -134,6 +161,7 @@ class FakeStore:
                 "name": product.get("name"),
                 "sale_price": product.get("price", {}).get("sale", 0),
                 "rating": product.get("rating", 0),
+                **product.get("attributes", {}),
             },
         )
 
@@ -421,6 +449,41 @@ def test_missing_color_is_relaxed_and_explained(catalog: ProductCatalog) -> None
     assert all(any("Rəng fərqlidir" in value for value in item.differences) for item in result.items)
 
 
+def test_directional_alternatives_keep_semantic_lane_bounded_at_fifty(
+    catalog: ProductCatalog,
+) -> None:
+    iphones = [
+        product
+        for product in catalog.products
+        if product["model_family"] == "iPhone" and product["color"]["code"] != "green"
+    ]
+    store = FakeStore(iphones)
+    search = QdrantProductSearch(catalog, FakeEmbeddings(), store)
+    arguments = ProductSearchArguments.model_validate(
+        {
+            "query": "Böyük ekranlı yaşıl smartfon",
+            "category_id": "smartphones",
+            "color_code": "green",
+            "semantic_ranking_objectives": [
+                {
+                    "field": "display_size_in",
+                    "direction": "maximize",
+                    "priority": "primary",
+                    "origin": "explicit",
+                    "evidence_text": "Böyük ekranlı",
+                }
+            ],
+            "semantic_plan_compiled": True,
+        }
+    )
+
+    result = search.search(arguments)
+
+    assert result.match_status == "alternatives"
+    assert store.candidate_limits == [50]
+    assert store.ordered_calls == [("display_size_in", "maximize", 20)]
+
+
 def test_required_brand_is_never_relaxed_for_alternatives(catalog: ProductCatalog) -> None:
     iphones = [
         product for product in catalog.products if product["model_family"] == "iPhone"
@@ -501,6 +564,89 @@ def test_sort_uses_top_fifty_semantic_candidates(catalog: ProductCatalog, sort: 
 
     assert len(result.items) == 5
     assert store.candidate_limits == [50]
+    assert result.ranking_objectives[0].priority == "primary"
+    assert result.ranking_objectives[0].origin == "explicit"
+
+
+def test_directional_ranking_uses_bounded_lanes_and_recommends_largest_screen(
+    catalog: ProductCatalog,
+) -> None:
+    products = [
+        product
+        for product in catalog.products
+        if product["category"]["id"] == "smartphones"
+    ]
+    store = FakeStore(products, filtered_count=80_000)
+    search = QdrantProductSearch(catalog, FakeEmbeddings(), store)
+    arguments = ProductSearchArguments.model_validate(
+        {
+            "query": "Böyük ekranlı smartfon",
+            "category_id": "smartphones",
+            "limit": 3,
+            "semantic_ranking_objectives": [
+                {
+                    "field": "display_size_in",
+                    "direction": "maximize",
+                    "priority": "primary",
+                    "origin": "explicit",
+                    "evidence_text": "Böyük ekranlı",
+                }
+            ],
+            "semantic_plan_compiled": True,
+        }
+    )
+
+    execution = search.search_with_trace(arguments)
+    sizes = [item.attributes["display_size_in"] for item in execution.result.items]
+
+    assert execution.result.ranking_applied is True
+    assert sizes == sorted(sizes, reverse=True)
+    assert execution.result.recommended_product_id == execution.result.items[0].product_id
+    assert execution.result.items[0].ranking_reasons
+    assert store.candidate_limits == [50]
+    assert store.ordered_calls == [("display_size_in", "maximize", 20)]
+    assert len(execution.debug_trace["candidate_generation_lanes"]) == 2
+    assert execution.debug_trace["ranking_mode"] == "active"
+
+
+def test_directional_ranking_flag_keeps_legacy_order_in_shadow_mode(
+    catalog: ProductCatalog,
+) -> None:
+    products = [
+        product
+        for product in catalog.products
+        if product["category"]["id"] == "smartphones"
+    ][:3]
+    store = FakeStore(products)
+    search = QdrantProductSearch(
+        catalog,
+        FakeEmbeddings(),
+        store,
+        directional_ranking_enabled=False,
+    )
+    arguments = ProductSearchArguments.model_validate(
+        {
+            "query": "Böyük ekranlı smartfon",
+            "category_id": "smartphones",
+            "semantic_ranking_objectives": [
+                {
+                    "field": "display_size_in",
+                    "direction": "maximize",
+                    "priority": "primary",
+                    "origin": "explicit",
+                    "evidence_text": "Böyük ekranlı",
+                }
+            ],
+            "semantic_plan_compiled": True,
+        }
+    )
+
+    execution = search.search_with_trace(arguments)
+
+    assert execution.result.ranking_applied is False
+    assert [item.product_id for item in execution.result.items] == store.semantic_ids[:5]
+    assert store.ordered_calls == []
+    assert execution.debug_trace["ranking_mode"] == "shadow"
 
 
 def test_embedding_failure_is_explicit_and_has_no_fallback(catalog: ProductCatalog) -> None:

@@ -219,7 +219,7 @@ async def test_direct_answer_uses_no_tool(settings: object) -> None:
     trace = repository.completed["debug_trace"]
     assert trace["diagnosis"]["code"] == "catalog_not_checked"
     assert trace["diagnosis"]["data_status"] == "Yoxlanılmayıb"
-    assert trace["trace_version"] == 6
+    assert trace["trace_version"] == 7
     assert trace["prompt"]["mode"] == "modular"
     assert trace["prompt"]["active_phase"] == "tool"
     assert trace["prompt"]["tool_char_reduction_percent"] >= 25

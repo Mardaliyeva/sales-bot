@@ -91,7 +91,7 @@ def test_product_run_creates_bounded_versioned_memory() -> None:
         max_bytes=8192,
     )
 
-    assert update.memory.version == 3
+    assert update.memory.version == 4
     assert update.memory.revision == 1
     assert update.memory.product.entities[0].product_id == "prd_smartphones_001"
     assert update.transition["action"] == "replace"
@@ -410,7 +410,7 @@ def test_model_family_is_persisted_as_facet_anchor_and_reused_by_follow_up() -> 
         max_bytes=8192,
     ).memory
 
-    assert memory.version == 3
+    assert memory.version == 4
     assert len(memory.product.entities) == 1
     anchor = memory.product.entities[0]
     assert anchor.anchor_kind == "facet"
@@ -1121,7 +1121,7 @@ def test_v1_memory_is_upgraded_and_summary_is_bounded() -> None:
         }
     )
 
-    assert loaded.version == 3
+    assert loaded.version == 4
     assert loaded.pending_intent is not None
     assert loaded.pending_intent.state == loaded.product
     assert loaded.continuation_summary == ""
@@ -1166,6 +1166,87 @@ def test_pending_intent_keeps_full_fact_question_shape() -> None:
         "AZN",
     )
     assert memory_reference_map(update.memory)[question.memory_id]["kind"] == "fact_question"
+
+
+def test_directional_ranking_objective_is_typed_and_reusable_in_memory() -> None:
+    objective = {
+        "field": "display_size_in",
+        "direction": "maximize",
+        "priority": "primary",
+        "origin": "explicit",
+        "evidence_text": "böyük ekran",
+    }
+    first = update_session_memory(
+        SessionMemory(),
+        request_id="req-ranking",
+        product_plan={
+            "query": "Böyük ekranlı smartfon göstər",
+            "operation": "discover",
+            "ranking_objectives": [objective],
+        },
+        product_result={
+            "status": "success",
+            "match_status": "matching_products",
+            "items": [],
+            "display_product_ids": [],
+            "constraint_conflicts": [],
+            "ranking_objectives": [objective],
+        },
+        document_arguments=None,
+        document_result=None,
+        max_bytes=8192,
+    ).memory
+
+    stored = first.product.ranking_objectives[0]
+    reference = memory_reference_map(first)[stored.memory_id]
+
+    assert first.version == 4
+    assert reference["kind"] == "ranking_objective"
+    assert reference["field"] == "display_size_in"
+    assert "display_size_in" in first.continuation_summary
+    assert memory_context_payload(first)["confirmed_state"]["ranking_objectives"][0][
+        "memory_id"
+    ] == stored.memory_id
+
+    reused = update_session_memory(
+        first,
+        request_id="req-ranking-follow-up",
+        product_plan={
+            "query": "Bu meyar qalsın",
+            "operation": "discover",
+            "memory_action": "merge",
+            "referenced_memory_ids": [stored.memory_id],
+            "ranking_objectives": [
+                {
+                    **objective,
+                    "origin": "memory",
+                    "evidence_text": "əvvəlki məqsəd",
+                    "memory_refs": [stored.memory_id],
+                }
+            ],
+        },
+        product_result={
+            "status": "success",
+            "match_status": "matching_products",
+            "items": [],
+            "display_product_ids": [],
+            "constraint_conflicts": [],
+            "ranking_objectives": [
+                {
+                    **objective,
+                    "origin": "memory",
+                    "evidence_text": "əvvəlki məqsəd",
+                    "memory_refs": [stored.memory_id],
+                }
+            ],
+        },
+        document_arguments=None,
+        document_result=None,
+        max_bytes=8192,
+    ).memory
+
+    assert reused.product.ranking_objectives[0].memory_id == stored.memory_id
+    assert reused.product.ranking_objectives[0].origin == "explicit"
 
 
 def _predicate(

@@ -87,6 +87,29 @@ class ToolRegistry:
                         "one of that field's canonical catalog values; do not copy a translated surface "
                         f"form. Catalog values: {'; '.join(facet_hints)}"
                     )
+            ranking_field_schema = (
+                definitions.get("RankingObjective", {})
+                .get("properties", {})
+                .get("field")
+            )
+            capabilities = tuple(
+                item
+                for item in getattr(catalog, "field_capabilities", lambda: ())()
+                if getattr(item, "sortable", False)
+            )
+            if isinstance(ranking_field_schema, dict) and capabilities:
+                ranking_field_schema["enum"] = [item.field for item in capabilities]
+                hints = [
+                    (
+                        f"{item.field}[number;categories={','.join(item.categories)};"
+                        f"unit={item.unit or 'catalog'}]"
+                    )
+                    for item in capabilities
+                ]
+                existing = str(ranking_field_schema.get("description", "")).rstrip()
+                ranking_field_schema["description"] = (
+                    f"{existing}. Bounded sortable field capabilities: {'; '.join(hints)}"
+                )
         specs = [
             {
                 "type": "function",
@@ -96,6 +119,7 @@ class ToolRegistry:
                         "Cari mesaj və verified sessiya kontekstindən tam ProductQueryPlan yarat. "
                         "Entity seçimi, kataloq filtrləri, preferences, fact questions və clarification "
                         "schema-dakı ayrı sahələrdə qalmalıdır; catalog və memory ID uydurma. "
+                        "Rəqəmsiz keyfiyyət istəyini threshold uydurmadan ranking_objectives ilə bildir. "
                         "Current-message evidence exact span, inherited evidence isə uyğun typed "
                         "memory ID ilə əsaslandırılmalıdır. pending_intent root ID yalnız "
                         "referenced_memory_ids üçündür; nested entity, predicate və fact memory_refs "

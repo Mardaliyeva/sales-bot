@@ -12,7 +12,7 @@ const candidates = Array.from({ length: 12 }, (_, index) => ({
 }));
 
 const trace: DebugTraceResponse = {
-  trace_version: 6,
+  trace_version: 7,
   detail_level: "full",
   request_id: "22222222-2222-4222-8222-222222222222",
   session_id: "11111111-1111-4111-8111-111111111111",
@@ -22,7 +22,7 @@ const trace: DebugTraceResponse = {
   prompt: {
     mode: "modular",
     active_phase: "response",
-    versions: { planner: "planner_v2", response: "response_v2" },
+    versions: { planner: "planner_v3", response: "response_v3" },
     phase_hashes: { tool: "tool-hash", response: "response-hash" },
     phase_chars: { tool: 4989, response: 1755 },
     phase_token_estimates: { tool: 1248, response: 439 },
@@ -59,6 +59,22 @@ const trace: DebugTraceResponse = {
         exact_candidates: candidates,
         semantic_candidates: candidates,
         semantic_state: "active",
+        ranking_mode: "active",
+        ranking_objectives: [
+          {
+            field: "display_size_in",
+            direction: "maximize",
+            priority: "primary",
+            origin: "explicit",
+          },
+        ],
+        candidate_generation_lanes: [
+          { lane: "semantic", requested_limit: 50, returned_count: 12 },
+          { lane: "objective:display_size_in:maximize", requested_limit: 20, returned_count: 12 },
+        ],
+        ranking_components: {
+          prd_laptops_001: { final_score: 0.94, objective_score: 1 },
+        },
         sorted_candidates: candidates,
         hydrated_product_ids: candidates.slice(0, 5).map((item) => item.product_id),
         returned_product_ids: candidates.slice(0, 5).map((item) => item.product_id),
@@ -120,6 +136,8 @@ describe("DebugDrawer", () => {
     expect(screen.getByText("confirmed")).toBeTruthy();
     expect(screen.getByText("Prompt modulları")).toBeTruthy();
     expect(screen.getByText("modular")).toBeTruthy();
+    expect(screen.getAllByText("active")).toHaveLength(2);
+    expect(screen.getByText(/Keyfiyy/)).toBeTruthy();
     expect(screen.getByText("53.3%")).toBeTruthy();
     expect(screen.getByText("Texniki detallar")).toBeTruthy();
     expect(screen.queryByText("Laptop 12")).toBeNull();

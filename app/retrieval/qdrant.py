@@ -22,6 +22,7 @@ from app.tools.schemas import (
     ProductQueryPlan,
     ProductSearchArguments,
     ProductSearchResult,
+    RankingObjective,
 )
 from app.vectorstores.qdrant import (
     DEFAULT_QUERY_CANDIDATES,
@@ -35,6 +36,8 @@ ALTERNATIVE_LIMIT = 3
 DEFAULT_ALTERNATIVE_MIN_SCORE = 0.39
 DEFAULT_ENTITY_RESOLUTION_MIN_SCORE = 0.62
 DEFAULT_ENTITY_RESOLUTION_MARGIN = 0.06
+DEFAULT_DIRECTIONAL_SEMANTIC_CANDIDATES = 50
+DEFAULT_DIRECTIONAL_FIELD_CANDIDATES = 20
 VISUAL_PREFERENCE_FIELDS = ("color_code",)
 TECHNICAL_PREFERENCE_FIELDS = (
     "min_price",
@@ -78,6 +81,15 @@ class QdrantCandidateStore(Protocol):
         candidate_limit: int = DEFAULT_QUERY_CANDIDATES,
     ) -> list[VectorSearchHit]: ...
 
+    def ordered_candidates(
+        self,
+        args: ProductSearchArguments,
+        *,
+        field: str,
+        direction: str,
+        candidate_limit: int = DEFAULT_DIRECTIONAL_FIELD_CANDIDATES,
+    ) -> list[VectorSearchHit]: ...
+
 
 @dataclass(frozen=True)
 class QdrantSearchExecution:
@@ -91,6 +103,8 @@ class AlternativeSearchExecution:
     semantic_hits: list[VectorSearchHit]
     stages: list[dict[str, Any]]
     semantic_state: str
+    candidate_generation_lanes: list[dict[str, Any]]
+    ranking_components: dict[str, dict[str, Any]]
 
 
 class QdrantProductSearch:
@@ -107,6 +121,7 @@ class QdrantProductSearch:
         alternative_min_score: float = DEFAULT_ALTERNATIVE_MIN_SCORE,
         entity_resolution_min_score: float = DEFAULT_ENTITY_RESOLUTION_MIN_SCORE,
         entity_resolution_margin: float = DEFAULT_ENTITY_RESOLUTION_MARGIN,
+        directional_ranking_enabled: bool = True,
     ) -> None:
         if not catalog.ready:
             raise ValueError("Qdrant axtarışı üçün kataloq əvvəlcədən yüklənməlidir")
@@ -128,6 +143,7 @@ class QdrantProductSearch:
         self.alternative_min_score = alternative_min_score
         self.entity_resolution_min_score = entity_resolution_min_score
         self.entity_resolution_margin = entity_resolution_margin
+        self.directional_ranking_enabled = directional_ranking_enabled
 
     @property
     def semantic_enabled(self) -> bool:
@@ -189,8 +205,14 @@ class QdrantProductSearch:
                         "mode": "semantic_plan_v1",
                         "raw_semantic_plan": plan.model_dump(mode="json"),
                         "canonical_semantic_plan": compilation.canonical_plan,
+                        "grounded_semantic_plan": compilation.canonical_plan,
                         "canonical_query_hash": compilation.canonical_hash,
                         "evidence_validation": compilation.evidence_validation,
+                        "numeric_provenance": list(compilation.numeric_provenance),
+                        "plan_corrections": list(compilation.plan_corrections),
+                        "field_capability_resolution": list(
+                            compilation.field_capability_resolution
+                        ),
                         "facet_mapping": list(compilation.facet_mapping),
                         "semantic_entity_candidates": semantic_resolution_trace,
                     },
@@ -205,8 +227,18 @@ class QdrantProductSearch:
             "mode": "semantic_plan_v1",
             "raw_semantic_plan": plan.model_dump(mode="json"),
             "canonical_semantic_plan": compilation.canonical_plan,
+            "grounded_semantic_plan": compilation.canonical_plan,
             "canonical_query_hash": compilation.canonical_hash,
             "evidence_validation": compilation.evidence_validation,
+            "numeric_provenance": list(compilation.numeric_provenance),
+            "plan_corrections": list(compilation.plan_corrections),
+            "field_capability_resolution": list(
+                compilation.field_capability_resolution
+            ),
+            "ranking_objectives": [
+                objective.model_dump(mode="json")
+                for objective in compilation.plan.ranking_objectives
+            ],
             "resolved_entities": [self._resolution_trace(item) for item in compilation.resolutions],
             "entity_candidates": [self._resolution_trace(item) for item in compilation.resolutions],
             "semantic_entity_candidates": semantic_resolution_trace,
@@ -310,6 +342,8 @@ class QdrantProductSearch:
                 "unavailable_requested_values": list(
                     compilation.unavailable_requested_values
                 ),
+                "ranking_objectives": compilation.plan.ranking_objectives,
+                "plan_corrections": list(compilation.plan_corrections),
             }
         )
         semantic_trace["compiled_filter"] = branch_traces[-1]["compiled_filter"]
@@ -339,6 +373,12 @@ class QdrantProductSearch:
                 "relaxed_fields": result.relaxed_fields,
                 "alternative_stages": flat_trace.get("alternative_stages", []),
                 "exact_filter_conflict": flat_trace.get("exact_filter_conflict", False),
+                "candidate_generation_lanes": flat_trace.get(
+                    "candidate_generation_lanes",
+                    [],
+                ),
+                "ranking_components": flat_trace.get("ranking_components", {}),
+                "ranking_mode": flat_trace.get("ranking_mode", "none"),
                 "total": result.total,
             }
         )
@@ -495,6 +535,8 @@ class QdrantProductSearch:
             unavailable_requested_values=list(
                 compilation.unavailable_requested_values
             ),
+            ranking_objectives=compilation.plan.ranking_objectives,
+            plan_corrections=list(compilation.plan_corrections),
         )
         semantic_trace["comparison_retrievals"] = retrievals
         semantic_trace["entity_results"] = entity_results
@@ -598,6 +640,8 @@ class QdrantProductSearch:
             unavailable_requested_values=list(
                 trace.get("unavailable_requested_values", [])
             ),
+            ranking_objectives=plan.ranking_objectives,
+            plan_corrections=list(trace.get("plan_corrections", [])),
         )
         return QdrantSearchExecution(
             result=result,
@@ -764,6 +808,7 @@ class QdrantProductSearch:
                 requested_item=requested_product,
                 constraint_conflicts=conflicts,
                 argument_corrections=argument_corrections,
+                ranking_components=alternatives.ranking_components,
             )
             return QdrantSearchExecution(
                 result=result,
@@ -786,12 +831,18 @@ class QdrantProductSearch:
                     argument_corrections=argument_corrections,
                     facet_mapping=facet_mapping,
                     constraint_conflicts=conflicts,
+                    candidate_generation_lanes=(
+                        alternatives.candidate_generation_lanes
+                    ),
+                    ranking_components=alternatives.ranking_components,
                 ),
             )
 
         if not args.has_exact_identifier and filtered_count > 0:
             candidate_limit = (
-                self.sort_candidate_limit
+                DEFAULT_DIRECTIONAL_SEMANTIC_CANDIDATES
+                if args.semantic_ranking_objectives
+                else self.sort_candidate_limit
                 if args.sort != "relevance"
                 else self.relevance_candidate_limit
             )
@@ -805,7 +856,14 @@ class QdrantProductSearch:
             except Exception as exc:
                 raise self._unavailable(args, "failed", exc, filtered_count=filtered_count) from exc
 
-            ordered_hits = self._sort_hits_for_args(semantic_hits, args)
+            candidate_pool, candidate_generation_lanes = self._directional_candidate_pool(
+                semantic_hits,
+                args,
+            )
+            ordered_hits, ranking_components = self._rank_hits_with_trace(
+                candidate_pool,
+                args,
+            )
             selected_hits = ordered_hits[: args.limit]
             products = self._hydrate(args, selected_hits, semantic_state="active")
             match_status: MatchStatus = "matching_products" if products else "not_found"
@@ -816,6 +874,7 @@ class QdrantProductSearch:
                 strict_total=filtered_count,
                 total=filtered_count if products else 0,
                 argument_corrections=argument_corrections,
+                ranking_components=ranking_components,
             )
             logger.info(
                 "product_search.qdrant_completed",
@@ -845,6 +904,8 @@ class QdrantProductSearch:
                     original_args=original_args,
                     argument_corrections=argument_corrections,
                     facet_mapping=facet_mapping,
+                    candidate_generation_lanes=candidate_generation_lanes,
+                    ranking_components=ranking_components,
                 ),
             )
 
@@ -877,6 +938,7 @@ class QdrantProductSearch:
             relaxed_fields=visible_relaxed,
             differences=differences,
             argument_corrections=argument_corrections,
+            ranking_components=alternatives.ranking_components,
         )
         logger.info(
             "product_search.qdrant_completed",
@@ -908,6 +970,8 @@ class QdrantProductSearch:
                 original_args=original_args,
                 argument_corrections=argument_corrections,
                 facet_mapping=facet_mapping,
+                candidate_generation_lanes=alternatives.candidate_generation_lanes,
+                ranking_components=alternatives.ranking_components,
             ),
         )
 
@@ -944,16 +1008,24 @@ class QdrantProductSearch:
                 semantic_hits=[],
                 stages=stage_trace,
                 semantic_state="not_run_no_alternative_candidates",
+                candidate_generation_lanes=[],
+                ranking_components={},
             )
 
         vector = self._embed_query(args)
         candidate_limit = (
-            self.sort_candidate_limit if args.sort != "relevance" else self.relevance_candidate_limit
+            DEFAULT_DIRECTIONAL_SEMANTIC_CANDIDATES
+            if self._effective_ranking_objectives(args)
+            else self.sort_candidate_limit
+            if args.sort != "relevance"
+            else self.relevance_candidate_limit
         )
         target = min(args.limit, ALTERNATIVE_LIMIT)
         selected: list[tuple[VectorSearchHit, tuple[str, ...]]] = []
         selected_ids: set[str] = set()
         semantic_by_id: dict[str, VectorSearchHit] = {}
+        candidate_generation_lanes: list[dict[str, Any]] = []
+        ranking_components: dict[str, dict[str, Any]] = {}
 
         for index, (stage_args, relaxed_fields, count) in enumerate(counted_stages):
             if count == 0 or len(selected) >= target:
@@ -969,7 +1041,21 @@ class QdrantProductSearch:
                 previous = semantic_by_id.get(hit.product_id)
                 if previous is None or hit.score > previous.score:
                     semantic_by_id[hit.product_id] = hit
-            for hit in self._sort_hits_for_args(eligible, args):
+            candidate_pool, lanes = self._directional_candidate_pool(eligible, stage_args)
+            eligible_ids = {hit.product_id for hit in eligible}
+            candidate_pool = [
+                hit for hit in candidate_pool if hit.product_id in eligible_ids
+            ]
+            for lane in lanes:
+                candidate_generation_lanes.append(
+                    {"alternative_stage": index + 1, **lane}
+                )
+            ordered_stage, stage_components = self._rank_hits_with_trace(
+                candidate_pool,
+                stage_args,
+            )
+            ranking_components.update(stage_components)
+            for hit in ordered_stage:
                 if hit.product_id in selected_ids:
                     continue
                 selected.append((hit, relaxed_fields))
@@ -984,6 +1070,8 @@ class QdrantProductSearch:
             semantic_hits=semantic_hits,
             stages=stage_trace,
             semantic_state="active_alternatives" if selected else "no_credible_alternatives",
+            candidate_generation_lanes=candidate_generation_lanes,
+            ranking_components=ranking_components,
         )
 
     def _alternative_stages(
@@ -1246,6 +1334,8 @@ class QdrantProductSearch:
                 "product_count": len(self.catalog.products),
                 "dataset_version": self.catalog.manifest.get("dataset_version"),
                 "catalog_checksum": self.catalog.manifest.get("checksums", {}).get("products_sha256"),
+                "field_capability_checksum": self.catalog.field_capability_checksum,
+                "field_capability_count": len(self.catalog.field_capabilities()),
                 "categories": sorted(category_counts),
                 "role": "full_product_hydration",
             },
@@ -1256,6 +1346,7 @@ class QdrantProductSearch:
                 "alternative_min_score": self.alternative_min_score,
                 "entity_resolution_min_score": self.entity_resolution_min_score,
                 "entity_resolution_margin": self.entity_resolution_margin,
+                "directional_ranking_enabled": self.directional_ranking_enabled,
                 "role": "exact_filters_and_semantic_candidates",
             },
             "documents": {
@@ -1314,21 +1405,231 @@ class QdrantProductSearch:
         hits: Sequence[VectorSearchHit],
         args: ProductSearchArguments,
     ) -> list[VectorSearchHit]:
+        return self._rank_hits_with_trace(hits, args)[0]
+
+    def _rank_hits_with_trace(
+        self,
+        hits: Sequence[VectorSearchHit],
+        args: ProductSearchArguments,
+    ) -> tuple[list[VectorSearchHit], dict[str, dict[str, Any]]]:
         ordered = self._sort_hits(hits, args.sort)
-        if args.semantic_preference_expression is None:
-            return ordered
-        base_rank = {hit.product_id: rank for rank, hit in enumerate(ordered)}
-        return sorted(
-            ordered,
+        objectives = self._effective_ranking_objectives(args)
+        if not objectives and args.semantic_preference_expression is None:
+            return ordered, {}
+
+        semantic_rank = {hit.product_id: rank for rank, hit in enumerate(ordered)}
+        objective_scores: dict[tuple[str, str], dict[str, float]] = {}
+        for objective in objectives:
+            values = {
+                hit.product_id: self._numeric_payload_value(hit.payload, objective.field)
+                for hit in hits
+            }
+            objective_scores[(objective.field, objective.direction)] = self._percentile_scores(
+                values,
+                direction=objective.direction,
+            )
+
+        preference_count = (
+            args.semantic_preference_expression.predicate_count()
+            if args.semantic_preference_expression is not None
+            else 0
+        )
+        components: dict[str, dict[str, Any]] = {}
+        for hit in hits:
+            explicit_weighted = []
+            inferred_weighted = []
+            objective_details = []
+            for objective in objectives:
+                score = objective_scores[(objective.field, objective.direction)].get(
+                    hit.product_id,
+                    0.0,
+                )
+                weight = 2.0 if objective.priority == "primary" else 1.0
+                target = inferred_weighted if objective.origin == "inferred" else explicit_weighted
+                target.append((score, weight))
+                objective_details.append(
+                    {
+                        "field": objective.field,
+                        "direction": objective.direction,
+                        "priority": objective.priority,
+                        "origin": objective.origin,
+                        "value": self._numeric_payload_value(hit.payload, objective.field),
+                        "desirability": round(score, 6),
+                    }
+                )
+
+            explicit_score = self._weighted_average(explicit_weighted)
+            inferred_score = self._weighted_average(inferred_weighted)
+            binary_score = (
+                preference_score(args.semantic_preference_expression, hit.payload)
+                / preference_count
+                if preference_count
+                else None
+            )
+            soft_values = [value for value in (inferred_score, binary_score) if value is not None]
+            soft_score = sum(soft_values) / len(soft_values) if soft_values else None
+            semantic_score = max(0.0, min(1.0, float(hit.score)))
+            groups = [
+                (explicit_score, 0.80),
+                (semantic_score, 0.15),
+                (soft_score, 0.05),
+            ]
+            active = [(score, weight) for score, weight in groups if score is not None]
+            total_weight = sum(weight for _, weight in active) or 1.0
+            total_score = sum(float(score) * weight for score, weight in active) / total_weight
+            components[hit.product_id] = {
+                "total_score": round(total_score, 6),
+                "explicit_directional_score": (
+                    round(explicit_score, 6) if explicit_score is not None else None
+                ),
+                "semantic_score": round(semantic_score, 6),
+                "soft_score": round(soft_score, 6) if soft_score is not None else None,
+                "objectives": objective_details,
+            }
+
+        ranked = sorted(
+            hits,
             key=lambda hit: (
-                -preference_score(args.semantic_preference_expression, hit.payload),
-                base_rank[hit.product_id],
+                -float(components[hit.product_id]["total_score"]),
+                semantic_rank.get(hit.product_id, len(hits) + 1),
                 hit.product_id,
             ),
         )
+        if not self.directional_ranking_enabled and objectives:
+            return ordered, {
+                product_id: {**value, "shadow_only": True}
+                for product_id, value in components.items()
+            }
+        return ranked, components
 
     @staticmethod
+    def _effective_ranking_objectives(
+        args: ProductSearchArguments,
+    ) -> list[RankingObjective]:
+        objectives = list(args.semantic_ranking_objectives)
+        sort_objectives = {
+            "price_asc": ("sale_price", "minimize"),
+            "price_desc": ("sale_price", "maximize"),
+            "rating_desc": ("rating", "maximize"),
+        }
+        sort_goal = sort_objectives.get(args.sort)
+        if sort_goal and not any(
+            item.field in {sort_goal[0], "price" if sort_goal[0] == "sale_price" else sort_goal[0]}
+            for item in objectives
+        ):
+            objectives.append(
+                RankingObjective(
+                    field=sort_goal[0],
+                    direction=sort_goal[1],
+                    priority="primary",
+                    origin="explicit",
+                    evidence_text=args.query,
+                )
+            )
+        return objectives
+
+    @staticmethod
+    def _numeric_payload_value(payload: dict[str, Any], field: str) -> float | None:
+        key = "sale_price" if field == "price" else field
+        value = payload.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        return float(value)
+
+    @staticmethod
+    def _percentile_scores(
+        values: dict[str, float | None],
+        *,
+        direction: str,
+    ) -> dict[str, float]:
+        present = sorted({value for value in values.values() if value is not None})
+        if not present:
+            return {product_id: 0.0 for product_id in values}
+        if len(present) == 1:
+            base = {present[0]: 1.0}
+        else:
+            base = {
+                value: (index + 1) / len(present)
+                for index, value in enumerate(present)
+            }
+        return {
+            product_id: (
+                0.0
+                if value is None
+                else base[value]
+                if direction == "maximize"
+                else (len(present) + 1) / len(present) - base[value]
+            )
+            for product_id, value in values.items()
+        }
+
+    @staticmethod
+    def _weighted_average(values: list[tuple[float, float]]) -> float | None:
+        if not values:
+            return None
+        total = sum(weight for _, weight in values)
+        return sum(score * weight for score, weight in values) / total
+
+    def _directional_candidate_pool(
+        self,
+        semantic_hits: Sequence[VectorSearchHit],
+        args: ProductSearchArguments,
+    ) -> tuple[list[VectorSearchHit], list[dict[str, Any]]]:
+        objectives = self._effective_ranking_objectives(args)
+        lanes: list[dict[str, Any]] = [
+            {
+                "kind": "semantic",
+                "limit": DEFAULT_DIRECTIONAL_SEMANTIC_CANDIDATES,
+                "candidate_count": len(semantic_hits),
+                "product_ids": [hit.product_id for hit in semantic_hits],
+            }
+        ]
+        by_id = {hit.product_id: hit for hit in semantic_hits}
+        if not objectives or not self.directional_ranking_enabled or self.store is None:
+            if objectives and not self.directional_ranking_enabled:
+                lanes.append({"kind": "directional", "mode": "shadow", "queried": False})
+            return list(by_id.values()), lanes
+
+        ordered_search = getattr(self.store, "ordered_candidates", None)
+        if not callable(ordered_search):
+            lanes.append(
+                {
+                    "kind": "directional",
+                    "mode": "active",
+                    "queried": False,
+                    "reason": "store_capability_unavailable",
+                }
+            )
+            return list(by_id.values()), lanes
+
+        seen_objectives: set[tuple[str, str]] = set()
+        for objective in objectives:
+            key = (objective.field, objective.direction)
+            if key in seen_objectives:
+                continue
+            seen_objectives.add(key)
+            ordered_hits = ordered_search(
+                args,
+                field=objective.field,
+                direction=objective.direction,
+                candidate_limit=DEFAULT_DIRECTIONAL_FIELD_CANDIDATES,
+            )
+            lanes.append(
+                {
+                    "kind": "field_order",
+                    "field": objective.field,
+                    "direction": objective.direction,
+                    "limit": DEFAULT_DIRECTIONAL_FIELD_CANDIDATES,
+                    "candidate_count": len(ordered_hits),
+                    "product_ids": [hit.product_id for hit in ordered_hits],
+                }
+            )
+            for hit in ordered_hits:
+                by_id.setdefault(hit.product_id, hit)
+        return list(by_id.values()), lanes
+
     def _result(
+        self,
         args: ProductSearchArguments,
         products: Sequence[dict[str, Any]],
         *,
@@ -1340,14 +1641,29 @@ class QdrantProductSearch:
         requested_item: dict[str, Any] | None = None,
         constraint_conflicts: Sequence[str] = (),
         argument_corrections: Sequence[dict[str, Any]] = (),
+        ranking_components: dict[str, dict[str, Any]] | None = None,
     ) -> ProductSearchResult:
         item_differences = differences or {}
+        item_ranking = ranking_components or {}
         items = []
         for product in products:
             item = ProductCatalog.to_result(product)
             product_differences = item_differences.get(product["product_id"], [])
-            if product_differences:
-                item = item.model_copy(update={"differences": product_differences})
+            ranking_reasons = [
+                self._ranking_reason(objective)
+                for objective in item_ranking.get(product["product_id"], {}).get(
+                    "objectives",
+                    [],
+                )
+                if objective.get("value") is not None
+            ]
+            if product_differences or ranking_reasons:
+                item = item.model_copy(
+                    update={
+                        "differences": product_differences,
+                        "ranking_reasons": ranking_reasons,
+                    }
+                )
             items.append(item)
         requested_result = ProductCatalog.to_result(requested_item) if requested_item else None
         display_product_ids = [item.product_id for item in items[:ALTERNATIVE_LIMIT]]
@@ -1356,7 +1672,7 @@ class QdrantProductSearch:
             recommended_product_id = requested_result.product_id
         return ProductSearchResult(
             match_status=match_status,
-            requested_label=QdrantProductSearch._requested_label(args),
+            requested_label=self._requested_label(args),
             strict_total=strict_total,
             total=total,
             applied_filters=ProductCatalog.applied_filters(args),
@@ -1367,7 +1683,18 @@ class QdrantProductSearch:
             argument_corrections=list(argument_corrections),
             recommended_product_id=recommended_product_id,
             display_product_ids=display_product_ids,
+            ranking_applied=bool(item_ranking) and self.directional_ranking_enabled,
+            ranking_objectives=self._effective_ranking_objectives(args),
         )
+
+    @staticmethod
+    def _ranking_reason(objective: dict[str, Any]) -> str:
+        direction = (
+            "daha yüksək dəyər üstün tutuldu"
+            if objective.get("direction") == "maximize"
+            else "daha aşağı dəyər üstün tutuldu"
+        )
+        return f"{objective.get('field')}: {objective.get('value')} ({direction})"
 
     @staticmethod
     def _candidate(hit: VectorSearchHit, rank: int, *, selected: bool = False) -> dict[str, Any]:
@@ -1402,6 +1729,8 @@ class QdrantProductSearch:
         argument_corrections: Sequence[dict[str, Any]] = (),
         facet_mapping: Sequence[dict[str, Any]] = (),
         constraint_conflicts: Sequence[str] = (),
+        candidate_generation_lanes: Sequence[dict[str, Any]] = (),
+        ranking_components: dict[str, dict[str, Any]] | None = None,
     ) -> dict[str, Any]:
         selected_ids = set(hydrated_ids)
         return {
@@ -1413,6 +1742,20 @@ class QdrantProductSearch:
             "facet_mapping": list(facet_mapping),
             "filters": ProductCatalog.applied_filters(args),
             "sort": args.sort,
+            "ranking_mode": (
+                "active"
+                if self.directional_ranking_enabled
+                and self._effective_ranking_objectives(args)
+                else "shadow"
+                if self._effective_ranking_objectives(args)
+                else "none"
+            ),
+            "ranking_objectives": [
+                objective.model_dump(mode="json")
+                for objective in self._effective_ranking_objectives(args)
+            ],
+            "candidate_generation_lanes": list(candidate_generation_lanes),
+            "ranking_components": ranking_components or {},
             "qdrant_checked": True,
             "retrieval_executed": True,
             "filtered_count": filtered_count,

@@ -1074,10 +1074,254 @@ def test_tool_schema_exposes_semantic_plan_and_catalog_fields(catalog: ProductCa
     assert "context_memory" not in schema["properties"]
     assert "memory_action" in schema["properties"]
     assert "memory_removals" in schema["properties"]
+    assert "ranking_objectives" in schema["properties"]
     assert "btu" in schema["$defs"]["SemanticPredicate"]["properties"]["field"]["enum"]
+    ranking_fields = schema["$defs"]["RankingObjective"]["properties"]["field"]["enum"]
+    assert "display_size_in" in ranking_fields
+    assert "brand" not in ranking_fields
     value_description = schema["$defs"]["SemanticPredicate"]["properties"]["value"]["description"]
     assert "color_code" in value_description
     assert "blue" in value_description
+
+
+def test_qualitative_goal_compiles_to_directional_ranking_without_threshold(
+    catalog: ProductCatalog,
+) -> None:
+    plan = ProductQueryPlan.model_validate(
+        {
+            "query": "Böyük ekranlı smartfon göstər",
+            "operation": "discover",
+            "filter_expression": {
+                "kind": "predicate",
+                "predicate": {
+                    "field": "category_id",
+                    "operator": "eq",
+                    "value": "smartphones",
+                    "strength": "hard",
+                    "evidence_text": "smartfon",
+                },
+            },
+            "ranking_objectives": [
+                {
+                    "field": "display_size_in",
+                    "direction": "maximize",
+                    "priority": "primary",
+                    "origin": "explicit",
+                    "evidence_text": "Böyük ekranlı",
+                }
+            ],
+        }
+    )
+
+    compilation = compile_semantic_plan(plan, catalog)
+
+    assert compilation.clarification is None
+    assert compilation.arguments[0].max_price is None
+    assert compilation.arguments[0].screen_size_in is None
+    assert compilation.arguments[0].semantic_ranking_objectives == plan.ranking_objectives
+    assert compilation.field_capability_resolution[0]["supported"] is True
+
+
+def test_ungrounded_numeric_threshold_requires_clarification(
+    catalog: ProductCatalog,
+) -> None:
+    plan = ProductQueryPlan.model_validate(
+        {
+            "query": "Ekranı böyük smartfon göstər",
+            "operation": "discover",
+            "filter_expression": {
+                "kind": "all_of",
+                "expressions": [
+                    {
+                        "kind": "predicate",
+                        "predicate": {
+                            "field": "category_id",
+                            "operator": "eq",
+                            "value": "smartphones",
+                            "strength": "hard",
+                            "evidence_text": "smartfon",
+                        },
+                    },
+                    {
+                        "kind": "predicate",
+                        "predicate": {
+                            "field": "display_size_in",
+                            "operator": "gte",
+                            "value": 6.5,
+                            "unit": "in",
+                            "strength": "hard",
+                            "value_provenance": "current_message",
+                            "evidence_text": "Ekranı böyük",
+                        },
+                    },
+                ],
+            },
+        }
+    )
+
+    compilation = compile_semantic_plan(plan, catalog)
+
+    assert compilation.arguments == ()
+    assert compilation.clarification is not None
+    assert "numeric_value_not_grounded" in compilation.clarification["reason"]
+    assert compilation.numeric_provenance[-1]["valid"] is False
+
+
+def test_unreferenced_hallucinated_entity_is_dropped_when_grounded_plan_remains(
+    catalog: ProductCatalog,
+) -> None:
+    plan = ProductQueryPlan.model_validate(
+        {
+            "query": "Nənəmin gözü zəifdir, böyük ekranlı smartfon göstər",
+            "operation": "discover",
+            "entities": [
+                {
+                    "entity_id": "hallucinated",
+                    "raw_text": "iPhone",
+                    "evidence_text": "iPhone",
+                }
+            ],
+            "filter_expression": {
+                "kind": "predicate",
+                "predicate": {
+                    "field": "category_id",
+                    "operator": "eq",
+                    "value": "smartphones",
+                    "strength": "hard",
+                    "evidence_text": "smartfon",
+                },
+            },
+            "ranking_objectives": [
+                {
+                    "field": "display_size_in",
+                    "direction": "maximize",
+                    "priority": "primary",
+                    "origin": "explicit",
+                    "evidence_text": "böyük ekranlı",
+                }
+            ],
+        }
+    )
+
+    compilation = compile_semantic_plan(plan, catalog)
+
+    assert compilation.clarification is None
+    assert compilation.plan.entities == []
+    assert compilation.resolutions == ()
+    assert compilation.plan_corrections[0]["action"] == "dropped_ungrounded_entity"
+
+
+def test_multiple_selected_entities_without_relationship_require_clarification(
+    catalog: ProductCatalog,
+) -> None:
+    plan = ProductQueryPlan.model_validate(
+        {
+            "query": "iPhone 17 Pro və Galaxy S25 Ultra",
+            "operation": "discover",
+            "entities": [
+                {
+                    "entity_id": "left",
+                    "raw_text": "iPhone 17 Pro",
+                    "evidence_text": "iPhone 17 Pro",
+                    "identifier_type": "model",
+                },
+                {
+                    "entity_id": "right",
+                    "raw_text": "Galaxy S25 Ultra",
+                    "evidence_text": "Galaxy S25 Ultra",
+                    "identifier_type": "model",
+                },
+            ],
+        }
+    )
+
+    compilation = compile_semantic_plan(plan, catalog)
+
+    assert compilation.arguments == ()
+    assert compilation.clarification is not None
+    assert "unbound_selected_entity" in compilation.clarification["reason"]
+
+
+def test_explicit_unsupported_ranking_blocks_but_inferred_is_safely_dropped(
+    catalog: ProductCatalog,
+) -> None:
+    base = {
+        "query": "Rahat smartfon göstər",
+        "operation": "discover",
+        "filter_expression": {
+            "kind": "predicate",
+            "predicate": {
+                "field": "category_id",
+                "operator": "eq",
+                "value": "smartphones",
+                "strength": "hard",
+                "evidence_text": "smartfon",
+            },
+        },
+    }
+    explicit = ProductQueryPlan.model_validate(
+        {
+            **base,
+            "ranking_objectives": [
+                {
+                    "field": "brand",
+                    "direction": "maximize",
+                    "origin": "explicit",
+                    "evidence_text": "Rahat",
+                }
+            ],
+        }
+    )
+    inferred = ProductQueryPlan.model_validate(
+        {
+            **base,
+            "ranking_objectives": [
+                {
+                    "field": "brand",
+                    "direction": "maximize",
+                    "priority": "inferred",
+                    "origin": "inferred",
+                    "evidence_text": "Rahat",
+                }
+            ],
+        }
+    )
+
+    blocked = compile_semantic_plan(explicit, catalog)
+    recovered = compile_semantic_plan(inferred, catalog)
+
+    assert blocked.clarification is not None
+    assert "unsupported_ranking_objective" in blocked.clarification["reason"]
+    assert recovered.clarification is None
+    assert recovered.plan.ranking_objectives == []
+    assert recovered.plan_corrections[0]["action"] == "dropped_inferred_ranking_objective"
+
+
+def test_conflicting_explicit_sort_and_direction_require_clarification(
+    catalog: ProductCatalog,
+) -> None:
+    plan = ProductQueryPlan.model_validate(
+        {
+            "query": "Ucuzdan bahaya düz, amma ən bahalıya üstünlük ver",
+            "operation": "discover",
+            "sort": "price_asc",
+            "ranking_objectives": [
+                {
+                    "field": "sale_price",
+                    "direction": "maximize",
+                    "priority": "primary",
+                    "origin": "explicit",
+                    "evidence_text": "ən bahalıya üstünlük ver",
+                }
+            ],
+        }
+    )
+
+    compilation = compile_semantic_plan(plan, catalog)
+
+    assert compilation.arguments == ()
+    assert compilation.clarification is not None
+    assert "conflicting_ranking_direction" in compilation.clarification["reason"]
 
 
 def test_any_of_keeps_grounded_branch_and_reports_unavailable_value(

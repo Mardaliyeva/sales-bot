@@ -26,7 +26,7 @@ from app.llm.azure_client import AzureChatClient, ProviderError, ProviderTimeout
 from app.tools.registry import ToolArgumentsError, ToolRegistry, UnknownToolError
 
 logger = logging.getLogger(__name__)
-TRACE_VERSION = 6
+TRACE_VERSION = 7
 SEMANTIC_PLAN_CACHE_SIZE = 256
 
 
@@ -58,6 +58,9 @@ def _plan_memory_references(plan: dict[str, Any] | None) -> set[str]:
     for question in plan.get("fact_questions", []):
         if isinstance(question, dict):
             references.update(str(item) for item in question.get("memory_refs", []) if item)
+    for objective in plan.get("ranking_objectives", []):
+        if isinstance(objective, dict):
+            references.update(str(item) for item in objective.get("memory_refs", []) if item)
     return references
 
 
@@ -793,6 +796,7 @@ class AgentRuntime:
             "product_tool_schema_hash": self._product_tool_schema_hash(),
             "catalog_schema_version": catalog.get("dataset_version"),
             "catalog_checksum": catalog.get("catalog_checksum"),
+            "field_capability_checksum": catalog.get("field_capability_checksum"),
         }
         return hashlib.sha256(
             json.dumps(

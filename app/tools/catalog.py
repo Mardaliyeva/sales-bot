@@ -12,6 +12,7 @@ from typing import Any, Protocol
 from jsonschema import Draft202012Validator
 
 from app.tools.schemas import (
+    NUMERIC_ATTRIBUTE_FIELDS,
     TEXT_ATTRIBUTE_FIELDS,
     ProductEntity,
     ProductSearchArguments,
@@ -62,6 +63,20 @@ class FacetResolution:
     candidates: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True)
+class FieldCapability:
+    field: str
+    value_type: str
+    categories: tuple[str, ...]
+    unit: str | None
+    filterable: bool
+    sortable: bool
+    fact_readable: bool
+    qdrant_payload_key: str
+    coverage_count: int
+    coverage_ratio: float
+
+
 class CatalogBackend(Protocol):
     """Data-source-neutral contract for semantic entity resolution."""
 
@@ -80,6 +95,13 @@ class CatalogBackend(Protocol):
     def facet_values(self, field: str) -> tuple[str, ...]: ...
 
     def resolve_facet_namespaces(self, value: str) -> tuple[FacetResolution, ...]: ...
+
+    def field_capability(self, field: str) -> FieldCapability | None: ...
+
+    def field_capabilities(self) -> tuple[FieldCapability, ...]: ...
+
+    @property
+    def field_capability_checksum(self) -> str: ...
 
 
 def normalize_text(value: str) -> str:
@@ -138,6 +160,8 @@ class ProductCatalog:
         self._token_signature_index: dict[str, set[str]] = {}
         self._model_tokens_by_id: dict[str, tuple[str, ...]] = {}
         self._catalog_fields: set[str] = set()
+        self._field_capabilities: dict[str, FieldCapability] = {}
+        self._field_capability_checksum = ""
 
     def load(self) -> None:
         manifest_path = self.catalog_dir / "manifest.json"
@@ -180,6 +204,29 @@ class ProductCatalog:
         self._facets = self._build_facet_registry(loaded)
         self._global_facets = self._build_global_facets(self._facets)
         self._build_resolution_indexes(loaded)
+        self._field_capabilities = self._build_field_capabilities(loaded)
+        self._field_capability_checksum = hashlib.sha256(
+            json.dumps(
+                [
+                    {
+                        "field": item.field,
+                        "value_type": item.value_type,
+                        "categories": item.categories,
+                        "unit": item.unit,
+                        "filterable": item.filterable,
+                        "sortable": item.sortable,
+                        "fact_readable": item.fact_readable,
+                        "qdrant_payload_key": item.qdrant_payload_key,
+                        "coverage_count": item.coverage_count,
+                        "coverage_ratio": item.coverage_ratio,
+                    }
+                    for item in self.field_capabilities()
+                ],
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+        ).hexdigest()
         self.ready = True
 
     def hydrate(self, product_ids: Sequence[str]) -> list[dict[str, Any]]:
@@ -316,6 +363,17 @@ class ProductCatalog:
 
     def supports_field(self, field: str) -> bool:
         return field in self._catalog_fields
+
+    def field_capability(self, field: str) -> FieldCapability | None:
+        canonical = "sale_price" if field == "price" else field
+        return self._field_capabilities.get(canonical)
+
+    def field_capabilities(self) -> tuple[FieldCapability, ...]:
+        return tuple(self._field_capabilities[field] for field in sorted(self._field_capabilities))
+
+    @property
+    def field_capability_checksum(self) -> str:
+        return self._field_capability_checksum
 
     @property
     def semantic_fields(self) -> tuple[str, ...]:
@@ -555,6 +613,90 @@ class ProductCatalog:
                 if target_field:
                     global_facets.setdefault(target_field, set()).update(values)
         return global_facets
+
+    @staticmethod
+    def _build_field_capabilities(
+        products: Sequence[dict[str, Any]],
+    ) -> dict[str, FieldCapability]:
+        values: dict[str, list[tuple[str, Any]]] = {}
+        for product in products:
+            category_id = str(product["category"]["id"])
+            top_level = {
+                "product_id": product.get("product_id"),
+                "sku": product.get("sku"),
+                "name": product.get("name"),
+                "model": product.get("model"),
+                "category_id": category_id,
+                "brand": product.get("brand"),
+                "model_family": product.get("model_family"),
+                "color_code": product.get("color", {}).get("code"),
+                "sale_price": product.get("price", {}).get("sale"),
+                "in_stock": product.get("stock", {}).get("status") == "in_stock",
+                "warranty_months": product.get("warranty_months"),
+                "rating": product.get("rating"),
+            }
+            for field, value in {**top_level, **product.get("attributes", {})}.items():
+                if value is not None:
+                    values.setdefault(field, []).append((category_id, value))
+
+        total = max(len(products), 1)
+        qdrant_sortable_fields = set(NUMERIC_ATTRIBUTE_FIELDS) | {
+            "sale_price",
+            "rating",
+            "warranty_months",
+        }
+        result: dict[str, FieldCapability] = {}
+        for field, observations in values.items():
+            sample = observations[0][1]
+            if isinstance(sample, bool):
+                value_type = "boolean"
+            elif isinstance(sample, (int, float)):
+                value_type = "number"
+            elif isinstance(sample, list):
+                value_type = "list"
+            elif isinstance(sample, dict):
+                value_type = "object"
+            else:
+                value_type = "text"
+            payload_key = {
+                "price": "sale_price",
+                "stock_status": "in_stock",
+            }.get(field, field)
+            result[field] = FieldCapability(
+                field=field,
+                value_type=value_type,
+                categories=tuple(sorted({category for category, _ in observations})),
+                unit=ProductCatalog._field_unit(field),
+                filterable=value_type in {"number", "boolean", "text"},
+                sortable=value_type == "number" and field in qdrant_sortable_fields,
+                fact_readable=True,
+                qdrant_payload_key=payload_key,
+                coverage_count=len(observations),
+                coverage_ratio=round(len(observations) / total, 6),
+            )
+        return result
+
+    @staticmethod
+    def _field_unit(field: str) -> str | None:
+        if field == "sale_price":
+            return "AZN"
+        if field == "btu":
+            return "BTU"
+        suffix_units = {
+            "_hours": "h",
+            "_mah": "mAh",
+            "_m2": "m²",
+            "_mp": "MP",
+            "_db": "dB",
+            "_gb": "GB",
+            "_hz": "Hz",
+            "_in": "in",
+            "_kg": "kg",
+        }
+        return next(
+            (unit for suffix, unit in suffix_units.items() if field.endswith(suffix)),
+            None,
+        )
 
     def _token_candidates(self, token: str) -> set[str]:
         keys = {token, *(token[:index] + token[index + 1 :] for index in range(len(token)))}

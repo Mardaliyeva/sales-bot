@@ -1,78 +1,281 @@
 # Sales Bot
 
-An AI-powered Azerbaijani e-commerce assistant that combines conversational product discovery, semantic search, structured product cards, and persistent chat history.
+> A production-oriented Azerbaijani e-commerce assistant for conversational product discovery, grounded recommendations, policy Q&A, and persistent shopping sessions.
 
-The project is implemented as a full-stack vertical slice: a Next.js chat interface communicates with a FastAPI agent runtime, Azure OpenAI handles conversation and embeddings, Qdrant retrieves relevant products, a validated local catalog supplies the final product data, and Supabase PostgreSQL stores sessions, messages, tool activity, and debug traces.
+Sales Bot is a full-stack AI application built around a simple rule: the language model interprets the conversation, but product and policy facts must come from verified data sources.
 
-> The included catalog is deterministic synthetic data intended for development, testing, and evaluation. It contains realistic product names, but its commercial data and URLs are not production data.
+The Next.js client provides the chat experience, FastAPI coordinates the agent loop, Azure OpenAI handles conversation and embeddings, Qdrant performs semantic retrieval, a validated JSONL catalog supplies complete product data, and Supabase PostgreSQL persists sessions, messages, tool activity, memory, and diagnostics.
 
-## Highlights
+> [!IMPORTANT]
+> The repository contains a deterministic synthetic catalog for development, testing, and evaluation. Product names are realistic, but prices, stock, specifications, and URLs are not production commerce data.
 
-- Azerbaijani-language conversational shopping experience
-- AI-guided discovery across 300 products and six electronics categories
-- Azure OpenAI chat completion and embedding deployments
-- Qdrant-based semantic retrieval with exact identifier and payload filtering
-- Optional Markdown document RAG for credit, delivery, warranty, return, and installation policies
-- LLM-first semantic query plans for lookup, discovery, comparison, fallback, exclusion, and preferences
-- Type-safe recursive filters for price, stock, brand, model, color, and category-specific specifications
-- Explicit exact-match, matching-product, alternative, and not-found outcomes
-- Full product hydration from a schema-validated local JSONL catalog
-- Rich product-card responses in a responsive Next.js interface
-- Persistent sessions and message history in Supabase PostgreSQL
-- Development-only debug traces for model, tool, retrieval, and latency diagnostics
-- Backend, frontend, acceptance, integration, and semantic-retrieval test coverage
+## Table of contents
 
-## System Architecture
+- [What the project delivers](#what-the-project-delivers)
+- [Architecture](#architecture)
+- [How the system works](#how-the-system-works)
+- [Product retrieval and ranking](#product-retrieval-and-ranking)
+- [Session memory](#session-memory)
+- [Document RAG](#document-rag)
+- [Technology stack](#technology-stack)
+- [Dataset](#dataset)
+- [Getting started](#getting-started)
+- [API reference](#api-reference)
+- [Configuration](#configuration)
+- [Observability and debug mode](#observability-and-debug-mode)
+- [Testing and evaluation](#testing-and-evaluation)
+- [Project structure](#project-structure)
+- [Current scope](#current-scope)
+
+## What the project delivers
+
+- Azerbaijani-language conversational shopping assistance
+- Product lookup, discovery, comparison, recommendation, and follow-up questions
+- Semantic search across 300 products in six electronics categories
+- Exact matching by product ID, SKU, and model before semantic retrieval
+- Typed filters for category, brand, model family, color, price, stock, rating, and category-specific specifications
+- Explicit handling of exact matches, filter conflicts, alternatives, ambiguity, and no-result cases
+- Directional ranking for requests such as “the cheapest,” “the lightest,” or “the model with the best battery life”
+- Structured product cards rendered by a responsive Next.js interface
+- Optional Markdown RAG for delivery, credit, warranty, returns, installation, and other store policies
+- Persistent sessions with bounded, versioned conversational memory
+- Development-only traces for model rounds, semantic plans, retrieval candidates, ranking, memory transitions, and latency
+- Unit, acceptance, integration, frontend, and live semantic evaluation workflows
+
+## Architecture
 
 ```mermaid
 flowchart LR
-    U["User"] --> UI["Next.js chat interface"]
-    UI -->|"POST /v1/sessions and /v1/chat"| API["FastAPI API"]
-    API --> SAFE["Input validation and session lock"]
-    SAFE --> AGENT["Agent runtime"]
-    AGENT <-->|"history, runs, messages"| DB[("Supabase PostgreSQL")]
-    AGENT <-->|"conversation and tool calls"| LLM["Azure OpenAI chat model"]
-    LLM -->|"product_search when needed"| SEARCH["Product search"]
-    LLM -->|"document_search when needed"| DOCSEARCH["Document search"]
-    SEARCH --> EMB["Azure OpenAI embeddings"]
-    DOCSEARCH --> EMB
-    EMB --> QD[("Qdrant")]
-    QD -->|"ranked product IDs"| CATALOG["Local 300-product JSONL catalog"]
-    QD -->|"ranked document chunks"| DOCS["Git-tracked Markdown policies"]
-    CATALOG -->|"hydrated product data"| AGENT
-    AGENT -->|"answer and optional product cards"| API
+    USER["User"] --> UI["Next.js chat UI"]
+    UI -->|"/backend rewrite"| API["FastAPI API"]
+
+    API --> GATE["Validation + session lock"]
+    GATE --> AGENT["Agent runtime"]
+    AGENT <-->|"sessions, runs, messages, memory, traces"| DB[("Supabase PostgreSQL")]
+    AGENT <-->|"conversation + typed tool calls"| CHAT["Azure OpenAI chat deployment"]
+
+    AGENT --> PSEARCH["product_search"]
+    PSEARCH --> EMB["Azure OpenAI embeddings"]
+    EMB --> QPRODUCT[("Qdrant product index")]
+    QPRODUCT -->|"ranked product IDs"| CATALOG["Validated JSONL catalog"]
+    CATALOG -->|"hydrated product records"| AGENT
+
+    AGENT --> DSEARCH["document_search — optional"]
+    DSEARCH --> EMB
+    EMB --> QDOCS[("Qdrant document index")]
+    QDOCS -->|"relevant chunk IDs"| DOCS["Markdown policy corpus"]
+    DOCS -->|"grounded text chunks"| AGENT
+
+    AGENT -->|"answer + optional presentation"| API
     API --> UI
 ```
 
-## Request Flow
+### Source-of-truth boundaries
 
-1. The frontend creates a server-side chat session through `POST /v1/sessions`.
-2. A user message is sent to `POST /v1/chat` with the session ID.
-3. FastAPI validates and sanitizes the input, checks database readiness, and prevents concurrent runs in the same session.
-4. The backend records the user message and agent run, then builds context from recent conversation history and product focus.
-5. The Azure OpenAI chat model either answers directly or emits a typed `ProductQueryPlan` in the existing first `product_search` tool round. The plan separates entities, selection logic, hard filters, preferences, fact questions, comparison, and clarification.
-6. The backend validates evidence against the current message, grounds fields against catalog metadata, resolves raw entities from prebuilt indexes, and compiles the language-independent expression tree to Qdrant filters. It does not parse Azerbaijani phrases with runtime word lists or regex meaning rules.
-7. The selected IDs are hydrated from the local JSONL catalog so user-facing price, stock, rating, warranty, and specification data come from the canonical dataset.
-8. Exact products are checked without filters first, so a constraint conflict cannot hide their existence. Fallback branches run in order, preferences affect ranking only, comparisons hydrate each entity separately, and alternatives exclude the requested product while retaining every hard predicate.
-9. The agent produces an Azerbaijani answer and, when applicable, a structured product-card presentation.
-10. The completed response, tool exchanges, metrics, and optional development trace are stored in PostgreSQL before the API returns the result to the frontend.
+| Concern | Authoritative source | Responsibility |
+| --- | --- | --- |
+| Conversation and intent | Azure OpenAI chat model | Understands Azerbaijani requests and chooses the next action |
+| Product candidate retrieval | Qdrant | Applies payload filters and returns ranked product IDs |
+| Product facts | `data/catalog/products.jsonl` | Supplies the final price, stock, rating, warranty, description, and specifications |
+| Store-policy facts | Markdown files in `data/documents/source` | Supplies the text used for grounded policy answers |
+| Session state and audit data | PostgreSQL | Stores sessions, runs, messages, tool exchanges, memory, usage, and debug traces |
+| Browser chat history | `localStorage` | Restores the local UI; it is not the authoritative agent history |
 
-## Technology Stack
+This separation prevents vector payloads or model-generated text from silently becoming the source of commercial facts.
+
+## How the system works
+
+### 1. Application startup
+
+During the FastAPI lifespan, the application prepares and verifies its runtime dependencies:
+
+1. Settings are loaded from `.env` and validated.
+2. The local JSONL catalog and its manifest are loaded and schema-checked.
+3. PostgreSQL, Azure OpenAI, and repository clients are initialized.
+4. If vector search is configured, the Qdrant product collection is checked against the active catalog checksum, dataset version, embedding deployment, vector dimensions, product IDs, and payload schema.
+5. If document search is enabled, the Markdown corpus, document collection, source checksum, payload schema, and retrieval baseline are also verified.
+6. Configured tools are registered with explicit readiness behavior; an unavailable backend returns a typed error instead of silently changing search strategy.
+7. A background job periodically removes expired session context while preserving normal database audit retention.
+
+The readiness endpoint reports these checks explicitly. An incompatible or stale vector index is never treated as healthy.
+
+### 2. Browser and session flow
+
+1. The frontend restores recent local chats after React hydration.
+2. On the first message of a new chat, it creates a backend session with `POST /v1/sessions`.
+3. The returned session ID is kept with the local chat record.
+4. Each message is sent to `POST /v1/chat` through the Next.js `/backend/*` rewrite.
+5. The UI renders the Azerbaijani answer and any structured product-card presentation returned by the API.
+6. Network, validation, session, and availability errors are converted into user-facing Azerbaijani states.
+
+### 3. End-to-end chat request flow
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as Next.js UI
+    participant API as FastAPI
+    participant DB as PostgreSQL
+    participant Agent as Agent runtime
+    participant LLM as Azure OpenAI
+    participant Tool as Product / document tool
+    participant Q as Qdrant
+    participant Source as JSONL / Markdown source
+
+    User->>UI: Sends a message
+    UI->>API: POST /v1/chat
+    API->>API: Validate and sanitize input
+    API->>API: Acquire per-session lock
+    API->>DB: Create run + persist user message
+    API->>Agent: Start agent run
+    Agent->>DB: Load final history + session memory
+    Agent->>LLM: Context + available tool schemas
+
+    alt Tool call is required
+        LLM-->>Agent: One typed tool call
+        Agent->>Tool: Validate and execute arguments
+        Tool->>Q: Exact / filtered / semantic retrieval
+        Q-->>Tool: Candidate IDs + ranking metadata
+        Tool->>Source: Hydrate verified facts
+        Source-->>Tool: Full products or document chunks
+        Tool-->>Agent: Structured result
+        Agent->>DB: Persist tool exchange
+        Agent->>LLM: Tool result for final response
+    else Direct response is sufficient
+        LLM-->>Agent: Azerbaijani answer
+    end
+
+    Agent->>Agent: Apply answer guards and build presentation
+    Agent->>Agent: Update bounded memory + decision explanation
+    Agent->>DB: Atomically complete run, answer, memory, and trace
+    Agent-->>API: Completed result
+    API-->>UI: Answer + metadata + optional product cards
+    UI-->>User: Render response
+```
+
+The backend enforces both an in-process session lock and a database-level active-run check. Two requests cannot mutate the same conversation at the same time.
+
+### 4. Agent loop
+
+For every accepted request, the runtime:
+
+1. Loads only completed conversation history, excluding the current run.
+2. Adds the verified session-memory context when that feature is enabled.
+3. Builds a phase-specific system prompt: tool planning, response generation, or safe finalization.
+4. Calls the Azure chat deployment with the currently available typed tools.
+5. Accepts at most one tool call per model round and enforces configured round/tool limits.
+6. Validates tool arguments before execution and stores every tool exchange.
+7. Returns tool evidence to the model for a grounded Azerbaijani response.
+8. Applies deterministic guards so product availability and document claims cannot contradict tool results.
+9. Falls back to a safe response if the provider returns filtered, empty, or protocol-invalid output.
+10. Builds product-card presentation data, updates session memory, produces a deterministic decision explanation, and commits the completed run.
+
+## Product retrieval and ranking
+
+Product search is not a free-form text-to-database translation. The first `product_search` call uses a validated `ProductQueryPlan` that keeps interpretation and execution separate.
+
+### Semantic plan
+
+The plan can represent:
+
+- `lookup`, `discover`, and `compare` operations
+- concrete product entities and their relationships
+- hard catalog constraints
+- soft preferences
+- directional ranking objectives
+- requested product facts
+- ordered fallback branches
+- memory actions: `replace`, `merge`, or `preserve`
+- explicit clarification when a request cannot be resolved safely
+
+Its expression tree supports `predicate`, `all_of`, `any_of`, `not`, `fallback`, `prefer`, and `entity_ref`. The backend validates expression depth, predicate count, entity references, field capabilities, value provenance, and evidence from the current message or verified memory.
+
+Natural-language meaning is interpreted by the model; execution remains deterministic and language-independent.
+
+### Retrieval pipeline
+
+1. **Ground the plan.** Catalog metadata is used to validate categories, facets, numeric fields, units, operators, and sortable capabilities. Unsupported or ungrounded values are corrected, rejected, or surfaced as clarification.
+2. **Resolve entities.** Product IDs and SKUs are verified directly. Product mentions are resolved through normalized catalog indexes and bounded semantic resolution. Ambiguous candidates produce `clarification_required` rather than a guessed product.
+3. **Compile filters.** The semantic expression is converted into typed Qdrant payload filters. Hard constraints and soft preferences remain distinct.
+4. **Check exact candidates first.** Exact identifiers are checked without structured filters and then with them. This allows the runtime to distinguish “product does not exist” from “product exists but conflicts with the requested constraints.”
+5. **Retrieve candidates.** General discovery embeds the query with Azure OpenAI and searches Qdrant with the compiled filters.
+6. **Build ranking lanes.** When directional ranking is enabled, semantic relevance and field-oriented candidate lanes are combined before deterministic scoring.
+7. **Rank and select.** Relevance, explicit sorting, soft preferences, and verified directional objectives determine order without weakening hard predicates.
+8. **Run fallbacks or alternatives when needed.** Fallback branches execute in order. Alternatives exclude the requested product, retain mandatory constraints, enforce the relevance threshold, and report any visible relaxation.
+9. **Hydrate from JSONL.** Qdrant IDs are resolved against the canonical catalog. The response never treats a vector payload as the complete product record.
+10. **Return a typed outcome.** The tool returns products, evidence, corrections, conflicts, relaxed fields, entity resolution, and display IDs for the final answer and product cards.
+
+### Match outcomes
+
+| `match_status` | Meaning |
+| --- | --- |
+| `exact_match` | A concrete identifier or resolved entity matches the active constraints |
+| `exact_conflict` | The requested product exists, but one or more constraints conflict with it |
+| `matching_products` | One or more products satisfy the compiled discovery request |
+| `alternatives` | No strict result exists, but explicitly qualified alternatives were found |
+| `clarification_required` | The product, referent, or semantic plan is ambiguous |
+| `not_found` | Neither a strict match nor a reliable alternative passed the policy |
+
+Semantic similarity alone is never presented as an exact match. If embeddings or Qdrant are unavailable, the tool returns an explicit unavailable error; there is no hidden lexical fallback.
+
+## Session memory
+
+Every successful run can maintain a compact, versioned memory object inside `chat_sessions.context`.
+
+Memory stores only bounded, verified state:
+
+- up to three resolved product entities
+- active constraints and preferences
+- directional ranking objectives
+- recent fact questions and displayed product IDs
+- pending clarification intent
+- document source IDs
+- a deterministic Azerbaijani continuation summary
+
+Version 3 coordinates three views:
+
+- `continuation_summary` provides concise semantic continuity;
+- `confirmed_state` contains backend-verified product state;
+- `pending_intent` preserves an unresolved request until clarification.
+
+The summary is treated as data, never as an instruction. Memory does not store full product payloads, full assistant answers, system prompts, raw tool payloads, raw document chunks, vectors, or provider reasoning.
+
+The final assistant message, debug trace, and memory revision are committed in one database transaction. A failed run preserves the previous memory revision. Serialized memory is capped by `SESSION_MEMORY_MAX_BYTES`, and expired context is scrubbed lazily and by the periodic cleanup job.
+
+Memory writes remain active for deterministic continuity and diagnostics. Injection into the model context is controlled independently by `SESSION_MEMORY_CONTEXT_ENABLED`.
+
+## Document RAG
+
+Document search is an optional, separately gated retrieval path for policy questions.
+
+The workflow is:
+
+1. Add UTF-8 Markdown documents to `data/documents/source`.
+2. Give every file a unique lowercase document ID as its filename and begin it with an H1 title.
+3. Run the document indexer, which creates heading-aware chunks and writes them to a separate Qdrant collection.
+4. Build and review the document retrieval evaluation set and baseline.
+5. Enable `DOCUMENT_SEARCH_ENABLED` only after the corpus, collection metadata, checksum, embedding configuration, and baseline agree.
+
+At runtime, `document_search` embeds the policy question, retrieves chunks above the baseline-derived score threshold, and returns only grounded text to the model. Filenames and internal chunk metadata remain debug-only. A missing result means “not found in the loaded documents,” while an unavailable tool means the retrieval system could not be used; these states are not conflated.
+
+The repository currently ships without production policy content or a document baseline, so document RAG is disabled by default.
+
+## Technology stack
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | Next.js 16, React 19, TypeScript, Vitest, Testing Library |
+| Frontend | Next.js 16, React 19, TypeScript, Lucide, Vitest, Testing Library |
 | Backend API | FastAPI, Pydantic, Uvicorn |
-| Agent and LLM | Azure OpenAI chat deployment with tool calling |
+| Agent and LLM | Azure OpenAI chat deployment with typed tool calling |
 | Embeddings | Azure OpenAI embedding deployment |
 | Vector search | Qdrant Cloud |
-| Source catalog | Schema-validated JSONL dataset |
+| Product source | Schema-validated JSONL catalog |
 | Persistence | Supabase PostgreSQL, SQLAlchemy, Psycopg, Alembic |
 | Quality | Pytest, Ruff, ESLint, Vitest, semantic retrieval evaluations |
 
-## Product Dataset
+## Dataset
 
-The repository includes 300 deterministic synthetic products, split evenly across:
+The bundled catalog contains 300 deterministic synthetic products, with 50 records in each category:
 
 - Smartphones
 - Tablets
@@ -81,21 +284,21 @@ The repository includes 300 deterministic synthetic products, split evenly acros
 - Televisions
 - Headphones
 
-The catalog uses Azerbaijani product content and AZN pricing. Its manifest records the dataset version, checksums, generation seed, category distribution, stock totals, and validation status. Qdrant stores searchable vectors and filter payloads; the JSONL catalog remains the source of truth for the complete product response.
+The dataset language is Azerbaijani and the currency is AZN. Its manifest records the generation seed, dataset version, category and brand distribution, stock totals, validation status, and source checksums. The JSONL file remains the product source of truth; Qdrant is a searchable projection of that data.
 
-## Prerequisites
+## Getting started
+
+The commands below target PowerShell on Windows.
+
+### Prerequisites
 
 - Python 3.14 or newer
 - Node.js 20.9 or newer
-- A Supabase PostgreSQL Session Pooler connection or compatible PostgreSQL database
+- A Supabase Session Pooler connection or another PostgreSQL database
 - An Azure OpenAI resource with chat and embedding deployments
-- A Qdrant Cloud cluster for semantic product search
+- A Qdrant Cloud cluster
 
 Docker is not required for local development.
-
-## Quick Start
-
-The commands below are written for PowerShell on Windows.
 
 ### 1. Clone the repository
 
@@ -104,7 +307,7 @@ git clone https://github.com/Mardaliyeva/sales-bot.git
 cd sales-bot
 ```
 
-### 2. Install backend dependencies
+### 2. Create the backend environment
 
 ```powershell
 python -m venv .venv
@@ -115,82 +318,61 @@ python -m pip install -e . --no-deps
 Copy-Item .env.example .env
 ```
 
-### 3. Configure the backend environment
+Edit `.env` and replace every credential placeholder. Never commit real credentials. If the database password contains reserved URL characters, URL-encode it before adding it to `DATABASE_URL`.
 
-Update `.env` with your own credentials and deployment names. Never place real credentials in `.env.example` or commit `.env` to Git.
-
-| Variable | Purpose | Required |
-| --- | --- | --- |
-| `DATABASE_URL` | Supabase Session Pooler or PostgreSQL URL using `postgresql+psycopg://` | Yes |
-| `CUSTOMER_AZURE_OPENAI_ENDPOINT` | Azure OpenAI HTTPS endpoint | Yes |
-| `CUSTOMER_AZURE_OPENAI_API_KEY` | Azure OpenAI API key | Yes |
-| `AZURE_TEXT_MODEL` | Azure chat deployment name | Yes |
-| `AZURE_EMBEDDING_MODEL` | Azure embedding deployment name | Yes for search |
-| `QDRANT_URL` | Qdrant Cloud HTTPS endpoint | Yes for search |
-| `QDRANT_API_KEY` | Qdrant Cloud API key | Yes for search |
-| `QDRANT_COLLECTION_NAME` | Product vector collection | Yes for search |
-| `ENTITY_RESOLUTION_MIN_SCORE` | Strong semantic entity-candidate threshold | Optional |
-| `ENTITY_RESOLUTION_MARGIN` | Minimum score gap required for a unique entity | Optional |
-| `QDRANT_DOCUMENT_COLLECTION_NAME` | Separate Markdown document collection | For document search |
-| `DOCUMENTS_PATH` | Git-tracked Markdown source directory | For document search |
-| `DOCUMENT_SEARCH_ENABLED` | Advertises `document_search` only after index and baseline are ready | Optional |
-| `TEST_DATABASE_URL` | Isolated PostgreSQL database used only by integration tests | Optional |
-| `DEBUG_PANEL_ENABLED` | Enables the backend debug trace endpoint in development | Optional |
-
-If the database password contains reserved URL characters, URL-encode it before placing it in `DATABASE_URL`.
-
-### 4. Apply database migrations
+### 3. Apply database migrations
 
 ```powershell
 python -m alembic upgrade head
 ```
 
-The migrations create tables for chat sessions, agent runs, messages, tool exchanges, usage metrics, and development debug traces.
+The migrations create the session, agent-run, and chat-message storage used for conversation history, tool exchanges, usage metrics, memory, and debug traces.
 
-### 5. Build the Qdrant product index
+### 4. Build and verify the product index
 
 ```powershell
 python -m app.indexing.products index
 python -m app.indexing.products status
 ```
 
-To deliberately regenerate every embedding:
+Force a complete embedding refresh only when intentionally changing the embedding projection:
 
 ```powershell
 python -m app.indexing.products index --refresh-embeddings
 ```
 
-The backend checks collection compatibility at startup. If Azure embeddings or Qdrant are unavailable or the collection is not ready, semantic product search is disabled and returns an explicit unavailable result; there is no hidden lexical fallback.
+Startup validates the active Qdrant collection against the local catalog. A mismatched collection disables product retrieval and is reported through readiness metadata.
 
-### 5b. Build the optional Markdown document index
+### 5. Optionally build the document index
 
-Place UTF-8 Markdown files in `data/documents/source`. Each filename must be a unique lowercase
-document ID and each file must start with an H1 title. Then run:
+After adding and reviewing policy documents:
 
 ```powershell
 python -m app.indexing.documents index
 python -m app.indexing.documents status
 ```
 
-The command creates `sales_bot_documents_v1` in the existing Qdrant cluster, writes heading-aware
-document chunks, removes stale chunks, and generates a deterministic `data/documents/manifest.json`.
-Do not enable `DOCUMENT_SEARCH_ENABLED` until the document eval baseline described below exists.
+Do not enable `DOCUMENT_SEARCH_ENABLED` until the document evaluation baseline has been created and verified.
 
 ### 6. Start the backend
 
+The repository includes a Windows-safe development launcher that uses the configured host and port and avoids opening a duplicate listener:
+
 ```powershell
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+python -m app.dev --reload
 ```
 
-Useful backend URLs:
+With `.env.example` defaults, the backend runs at `http://127.0.0.1:8001`.
 
-- API documentation: `http://127.0.0.1:8000/docs`
-- Liveness check: `http://127.0.0.1:8000/health/live`
-- Readiness check: `http://127.0.0.1:8000/health/ready`
+Useful URLs:
+
+- OpenAPI documentation: `http://127.0.0.1:8001/docs`
+- Liveness: `http://127.0.0.1:8001/health/live`
+- Readiness: `http://127.0.0.1:8001/health/ready`
 
 ### 7. Start the frontend
 
-Open another PowerShell window:
+Open a second PowerShell window:
 
 ```powershell
 cd frontend
@@ -199,9 +381,11 @@ npm.cmd install
 npm.cmd run dev
 ```
 
-Open `http://127.0.0.1:3000`. The frontend proxies `/backend/*` requests to the FastAPI URL configured through `SALES_BOT_API_URL`. Browser-side chat state is retained in `localStorage`, while authoritative session and agent history are stored by the backend in PostgreSQL.
+Then open `http://127.0.0.1:3000`.
 
-## API Overview
+The frontend sends browser requests to `/backend/*`; Next.js rewrites them to `SALES_BOT_API_URL` or to `127.0.0.1:$SALES_BOT_API_PORT` when no explicit URL is configured.
+
+## API reference
 
 ### Create a session
 
@@ -230,22 +414,83 @@ Content-Type: application/json
 
 {
   "session_id": "6dfbfa56-e61a-43f7-a1f0-932f94df27fd",
-  "message": "Show me a black 128 GB iPhone under 2,000 AZN"
+  "message": "2000 AZN-dən ucuz qara rəngli 128 GB iPhone göstər"
 }
 ```
 
-The response contains the assistant answer, request and message identifiers, tools used, and an optional `presentation` object for product cards. The assistant itself responds in Azerbaijani.
+The response includes the Azerbaijani answer, request and message identifiers, used tools, and an optional `presentation` object for product cards.
 
-### Health checks
+### Endpoints
 
-| Endpoint | Description |
+| Method | Endpoint | Purpose |
+| --- | --- | --- |
+| `POST` | `/v1/sessions` | Create an expiring chat session |
+| `POST` | `/v1/chat` | Process one message in an existing session |
+| `GET` | `/health/live` | Confirm that the API process is alive |
+| `GET` | `/health/ready` | Verify database, catalog, vector index, payload schema, embeddings, and optional document readiness |
+| `GET` | `/v1/debug/traces` | Load a development trace by request ID or message ID |
+
+## Configuration
+
+Copy `.env.example` to `.env` for the backend and `frontend/.env.example` to `frontend/.env.local` for the frontend.
+
+### Required backend settings
+
+| Variable | Purpose |
 | --- | --- |
-| `GET /health/live` | Confirms that the API process is running |
-| `GET /health/ready` | Checks PostgreSQL migrations and local catalog readiness |
+| `DATABASE_URL` | PostgreSQL URL using the `postgresql+psycopg://` scheme |
+| `CUSTOMER_AZURE_OPENAI_ENDPOINT` | Azure OpenAI HTTPS endpoint |
+| `CUSTOMER_AZURE_OPENAI_API_KEY` | Azure OpenAI API key |
+| `AZURE_TEXT_MODEL` | Azure chat deployment name |
+| `AZURE_EMBEDDING_MODEL` | Azure embedding deployment name |
+| `QDRANT_URL` | Qdrant Cloud HTTPS endpoint |
+| `QDRANT_API_KEY` | Qdrant API key |
+| `QDRANT_COLLECTION_NAME` | Active product collection or alias |
 
-### Development debug trace
+### Retrieval and document settings
 
-Set both of the following flags:
+| Variable | Purpose |
+| --- | --- |
+| `ALTERNATIVE_MIN_SCORE` | Minimum relevance accepted for alternatives |
+| `ENTITY_RESOLUTION_MIN_SCORE` | Minimum semantic score for a strong entity candidate |
+| `ENTITY_RESOLUTION_MARGIN` | Required gap between the best entity candidates |
+| `DIRECTIONAL_RANKING_ENABLED` | Enables directional candidate lanes and ranking objectives |
+| `DOCUMENT_SEARCH_ENABLED` | Enables the document tool after its index and baseline are ready |
+| `DOCUMENTS_PATH` | Directory containing Markdown policy sources |
+| `QDRANT_DOCUMENT_COLLECTION_NAME` | Separate Qdrant collection for document chunks |
+
+### Runtime and memory settings
+
+| Variable | Purpose |
+| --- | --- |
+| `MAX_TOOL_COUNT` | Maximum tools allowed in one run |
+| `MAX_MODEL_ROUNDS` | Maximum agent-model rounds |
+| `MAX_OUTPUT_TOKENS` | Model output-token ceiling |
+| `HISTORY_MESSAGE_LIMIT` | Completed history messages loaded into context |
+| `SESSION_TTL_HOURS` | Backend session lifetime |
+| `SESSION_MEMORY_CONTEXT_ENABLED` | Injects verified session memory into model context |
+| `SESSION_MEMORY_MAX_BYTES` | Maximum serialized memory size |
+| `SESSION_CONTEXT_SCRUB_INTERVAL_SECONDS` | Background expired-context cleanup interval |
+| `MODULAR_PROMPT_ENABLED` | Selects the modular prompt composer |
+| `LLM_TIMEOUT_SECONDS` | Azure chat request timeout |
+| `TOOL_TIMEOUT_SECONDS` | Per-tool execution timeout |
+
+### Development and frontend settings
+
+| Variable | Location | Purpose |
+| --- | --- | --- |
+| `APP_ENV` | Backend | Controls environment-specific behavior |
+| `SALES_BOT_API_PORT` | Both | Keeps the local backend port and frontend rewrite aligned |
+| `DEBUG_PANEL_ENABLED` | Backend | Enables trace retrieval in development |
+| `SALES_BOT_API_URL` | Frontend | Optional explicit backend base URL |
+| `NEXT_PUBLIC_DEBUG_PANEL` | Frontend | Shows the debug action in the chat UI |
+| `TEST_DATABASE_URL` | Backend tests | Dedicated PostgreSQL database for integration tests |
+
+Feature defaults are intentionally conservative in production. Review `.env.example` and `app/config.py` before deployment.
+
+## Observability and debug mode
+
+Enable both sides of the development panel:
 
 ```env
 # Backend .env
@@ -256,96 +501,27 @@ DEBUG_PANEL_ENABLED=true
 NEXT_PUBLIC_DEBUG_PANEL=true
 ```
 
-The debug drawer exposes model stages, tool arguments, product and document Qdrant candidates,
-selected Markdown chunks, JSON hydration, warnings, runtime metrics, and a deterministic
-`decision_explanation`. That explanation is built from the validated semantic plan, catalog or
-document evidence, runtime outcome, and session-memory transition; it is not model
-chain-of-thought. Document filenames and chunk metadata remain developer-only and are not
-included in normal chat responses. The endpoint is unavailable outside development mode and does
-not expose API keys, the system prompt, provider reasoning details, raw vectors, or private
-chain-of-thought reasoning. New traces use trace version `6`; the runtime reports API schema
-version `2.6` through health metadata. Prompt debug shows only active phase, module versions,
-hashes, and size metrics; it never returns the prompt text.
+The debug drawer can show:
 
-The modular prompt composer separates core safety, tool routing, product planning, response, and
-safe-final contracts without adding a model call. It defaults on in development/test and off in
-production; `MODULAR_PROMPT_ENABLED=true` enables it after acceptance gates pass. The legacy prompt
-remains available as an immediate rollback while the semantic-plan cache is keyed only by the
-planner prompt and product-tool schema hashes.
+- model rounds, active prompt phase, and tool routing
+- raw and grounded semantic-plan summaries
+- numeric provenance, field capability resolution, and plan corrections
+- exact, semantic, filtered, and sorted Qdrant candidates
+- fallback and alternative stages
+- directional candidate lanes and ranking components
+- hydrated product IDs and document chunks
+- data-source health and warnings
+- session-memory transitions
+- token usage and latency metrics
+- a deterministic `decision_explanation`
 
-### Session memory
+The decision explanation is derived from the validated plan, retrieved evidence, runtime outcome, and memory transition. It is not chain-of-thought.
 
-Successful runs keep a versioned, session-scoped memory object inside the existing
-`chat_sessions.context` JSONB column. The memory stores at most three resolved entities, bounded
-constraints and preferences, recent fact questions and display IDs, pending intent state, and
-document source IDs. Version 3 stores two coordinated views: a deterministic Azerbaijani
-`continuation_summary` for semantic continuity and a backend-verified `confirmed_state` plus full
-canonical `pending_intent` for grounding. The summary is treated as data, never as an instruction,
-and is replaced after each successful state-changing turn rather than accumulated. It never stores
-full product payloads, assistant answers, prompts, raw tool
-payloads, raw document chunks, vectors, or provider reasoning. The final message, debug trace, and
-memory update are committed in one database transaction; failed runs preserve the previous
-revision.
+The debug endpoint exists only when `APP_ENV=development` and `DEBUG_PANEL_ENABLED=true`. It does not expose API keys, system-prompt text, raw vectors, private provider reasoning, or hidden chain-of-thought. New traces use trace version `7`, and health metadata reports API schema version `2.7`.
 
-Memory writes and debug explanations are always enabled. Injection of that memory into the LLM
-context is controlled separately by `SESSION_MEMORY_CONTEXT_ENABLED`. When the variable is not
-set, injection defaults to `true` in development/test and `false` in production. Production must
-enable it explicitly after the continuation acceptance suite passes. The serialized memory is
-capped by `SESSION_MEMORY_MAX_BYTES` (default `8192`). Expired session context is removed lazily
-and by the periodic `SESSION_CONTEXT_SCRUB_INTERVAL_SECONDS` job while debug audit rows retain their
-normal retention behavior.
+## Testing and evaluation
 
-## Retrieval and Ranking
-
-`product_search` accepts a recursive `ProductQueryPlan` rather than asking the model to flatten the sentence into independent filters. The plan supports `predicate`, `all_of`, `any_of`, `not`, `fallback`, `prefer`, and `entity_ref`; natural-language wording is interpreted by the LLM while these operators remain the backend execution contract. Fields exposed to the model are generated from loaded catalog metadata.
-
-Entities are resolved after semantic parsing through normalized exact, token, and typo indexes. Exact product IDs and SKUs are verified directly. Multiple plausible products produce a clarification response with no cards. Session references can only use product IDs already supplied by the backend context. A bounded runtime cache stores semantic plans only; current price and stock are always fetched again.
-
-Search behavior is intentionally explicit:
-
-- Exact identifiers are checked against Qdrant payload fields.
-- General queries use Azure embeddings over product name and description.
-- Hard filters are applied in Qdrant rather than inferred after retrieval.
-- Qdrant returns candidate IDs and ranking metadata.
-- Full product objects are loaded from the local catalog.
-- Price and rating sorting is applied to the retrieved candidate set.
-- Alternative recommendations preserve hard constraints and report any relaxed fields.
-- Semantic similarity alone is never presented as an exact match.
-
-## Evaluation
-
-The repository contains 30 canonical retrieval queries and 37 challenge queries, together with versioned baselines. Run the semantic evaluation with:
-
-```powershell
-python -m app.evals.product_semantic --update-baseline
-python -m app.evals.product_semantic
-```
-
-The retrieval evaluation runner uses the Azure embedding deployment and Qdrant, but does not call the chat model or Supabase. Recalibrate `ALTERNATIVE_MIN_SCORE`, `ENTITY_RESOLUTION_MIN_SCORE`, and `ENTITY_RESOLUTION_MARGIN` whenever the dataset, embedding deployment, or embedding text format changes.
-
-Run the live first-round semantic-plan gate separately (it calls only the configured chat deployment):
-
-```powershell
-python -m app.evals.semantic_plans
-```
-
-The human-reviewed cases are stored in `data/evals/semantic_query_plans.json`; the gate requires at least 95% exact semantic-signature accuracy.
-
-After Markdown documents are added, create `data/evals/document_retrieval.json` with at least 30
-manual cases and run:
-
-```powershell
-python -m app.evals.document_retrieval --update-baseline
-python -m app.evals.document_retrieval
-```
-
-The generated `document_qdrant_v1.json` baseline binds the runtime score threshold to the exact
-document checksum, collection name, embedding deployment, and dimensions. When document search is
-enabled, missing or stale document index/baseline metadata makes `/health/ready` fail explicitly.
-
-## Testing and Quality Checks
-
-Backend checks:
+### Backend quality checks
 
 ```powershell
 python -m ruff check .
@@ -353,7 +529,9 @@ python -m pytest -m "not integration"
 python -m pytest -m integration
 ```
 
-Frontend checks:
+Unit and acceptance tests mock Azure and Qdrant by default. Integration tests require `TEST_DATABASE_URL`. Use only a disposable, isolated database whose name ends with `_test`; never target the primary application database.
+
+### Frontend quality checks
 
 ```powershell
 cd frontend
@@ -362,41 +540,74 @@ npm.cmd run lint
 npm.cmd run build
 ```
 
-Unit and acceptance tests mock external Azure and Qdrant calls by default. Integration tests run only when `TEST_DATABASE_URL` is configured. Always use a dedicated database whose name ends with `_test`; never point destructive integration tests at the primary Supabase database.
+### Product retrieval evaluation
 
-## Project Structure
+The product suite contains 30 canonical queries and 37 challenge queries with a versioned baseline:
+
+```powershell
+python -m app.evals.product_semantic
+```
+
+Only update the baseline after intentionally reviewing a dataset, embedding, payload, or ranking change:
+
+```powershell
+python -m app.evals.product_semantic --update-baseline
+```
+
+This evaluator calls the embedding deployment and Qdrant, but not the chat model or PostgreSQL. Recalibrate retrieval thresholds whenever the dataset, embedding deployment, vector dimensions, or embedding text format changes.
+
+### Semantic-plan evaluation
+
+The live first-round planner gate calls the configured chat deployment:
+
+```powershell
+python -m app.evals.semantic_plans
+```
+
+Human-reviewed cases live in `data/evals/semantic_query_plans.json`. The gate requires at least 95% exact semantic-signature accuracy.
+
+### Document retrieval evaluation
+
+After adding real policy documents, create at least 30 reviewed document cases and run:
+
+```powershell
+python -m app.evals.document_retrieval --update-baseline
+python -m app.evals.document_retrieval
+```
+
+The generated baseline binds the score threshold to the exact source checksum, collection, embedding deployment, and vector dimensions. When document search is enabled, stale or missing metadata makes readiness fail explicitly.
+
+## Project structure
 
 ```text
 sales-bot/
 |-- app/
-|   |-- agent/          # Agent loop, prompting, context, locking, presentation
-|   |-- api/            # FastAPI routes, schemas, dependencies, error handling
-|   |-- db/             # SQLAlchemy models, sessions, and repositories
-|   |-- documents/      # Markdown loading, chunking, manifests, and baseline validation
-|   |-- embeddings/     # Azure embedding client and local cache
-|   |-- evals/          # Semantic retrieval evaluation runners
-|   |-- indexing/       # Product and Markdown document indexing CLIs
-|   |-- llm/            # Azure chat client and response schemas
-|   |-- retrieval/      # Exact, filtered, semantic, and alternative retrieval
-|   |-- safety/         # User-input validation
-|   |-- tools/          # Typed product_search tool contract and registry
-|   `-- vectorstores/   # Qdrant collection and point operations
+|   |-- agent/          # Agent loop, prompts, context, memory, guards, presentation
+|   |-- api/            # FastAPI routes, schemas, dependencies, and errors
+|   |-- db/             # SQLAlchemy models, database session, repositories
+|   |-- documents/      # Markdown corpus, chunking, manifest, baseline validation
+|   |-- embeddings/     # Azure embedding client and local embedding cache
+|   |-- evals/          # Product, planner, document, and chat evaluation runners
+|   |-- indexing/       # Product and document indexing CLIs
+|   |-- llm/            # Azure chat client and provider response schemas
+|   |-- retrieval/      # Semantic planning, exact search, filters, ranking, alternatives
+|   |-- safety/         # Input validation and sanitization
+|   |-- tools/          # Typed tool schemas, registry, and adapters
+|   `-- vectorstores/   # Qdrant product and document collection operations
 |-- alembic/            # PostgreSQL schema migrations
 |-- data/
-|   |-- catalog/        # Products, schema, manifest, and golden queries
-|   |-- documents/      # Git-tracked Markdown policy sources and generated manifest
-|   `-- evals/          # Challenge cases and retrieval baselines
-|-- frontend/           # Next.js chat interface and component tests
+|   |-- catalog/        # Products, schema, generation rules, manifest, golden queries
+|   |-- documents/      # Markdown policy sources and generated manifest
+|   `-- evals/          # Reviewed cases and versioned retrieval baselines
+|-- frontend/           # Next.js chat UI, API client, local storage, component tests
 |-- tests/              # Backend unit, acceptance, and integration tests
 |-- .env.example        # Safe backend configuration template
 |-- pyproject.toml      # Python package and tooling configuration
-`-- requirements.lock   # Reproducible Python dependency versions
+`-- requirements.lock   # Reproducible backend dependency versions
 ```
 
-## Current Scope
+## Current scope
 
-This repository is a production-oriented vertical slice, not a complete commerce platform. Markdown
-document RAG is implemented but remains disabled until real policy documents are indexed and pass
-their retrieval baseline. The current version does not include authentication, checkout, streaming
-responses, operator handoff, OCR/PDF ingestion, or an administration interface. Product data is
-synthetic and must be replaced or integrated with a real catalog before production use.
+Sales Bot is a production-oriented vertical slice, not a complete commerce platform.
+
+The current repository does not include authentication, checkout, payments, live inventory synchronization, streaming responses, operator handoff, OCR/PDF ingestion, or an administration interface. Document RAG is implemented but remains disabled until real policy documents are indexed and pass the retrieval baseline. The synthetic catalog must be replaced or connected to a real commerce source before production use.

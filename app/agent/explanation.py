@@ -75,6 +75,28 @@ def build_decision_explanation(
                 "detail": "Entity və facet dəyərləri kataloq metadata-sı ilə yoxlanıldı.",
             }
         )
+        if product_retrieval.get("plan_corrections"):
+            steps.append(
+                {
+                    "code": "grounded_plan_projection",
+                    "status": "corrected",
+                    "detail": (
+                        "Asılılığı olmayan əsassız plan hissələri silindi; istifadəçinin "
+                        "hard şərtləri qorundu."
+                    ),
+                }
+            )
+        if product_retrieval.get("ranking_mode") in {"active", "shadow"}:
+            steps.append(
+                {
+                    "code": "directional_ranking",
+                    "status": str(product_retrieval.get("ranking_mode")),
+                    "detail": (
+                        "Namizədlər yoxlanılmış istiqamətli keyfiyyət məqsədləri ilə "
+                        "deterministik sıralandı."
+                    ),
+                }
+            )
     if product_result:
         steps.append(
             {
@@ -126,6 +148,14 @@ def build_decision_explanation(
         "unavailable_requested_values": list(
             (product_result or {}).get("unavailable_requested_values")
             or (product_retrieval or {}).get("unavailable_requested_values")
+            or []
+        ),
+        "numeric_provenance": list(
+            (product_retrieval or {}).get("numeric_provenance") or []
+        ),
+        "plan_corrections": list(
+            (product_result or {}).get("plan_corrections")
+            or (product_retrieval or {}).get("plan_corrections")
             or []
         ),
     }
@@ -235,6 +265,21 @@ def _understood_request(
         ],
         "hard_constraints": _predicate_summaries(plan.get("filter_expression")),
         "preferences": _predicate_summaries(plan.get("preference_expression")),
+        "ranking_objectives": [
+            {
+                key: item.get(key)
+                for key in (
+                    "field",
+                    "direction",
+                    "priority",
+                    "origin",
+                    "memory_refs",
+                )
+                if item.get(key) is not None
+            }
+            for item in plan.get("ranking_objectives", [])
+            if isinstance(item, dict)
+        ],
         "fact_questions": [
             {
                 key: item.get(key)
@@ -295,6 +340,9 @@ def _memory_refs(plan: dict[str, Any] | None) -> set[str]:
     for question in plan.get("fact_questions", []):
         if isinstance(question, dict):
             result.update(str(item) for item in question.get("memory_refs", []))
+    for objective in plan.get("ranking_objectives", []):
+        if isinstance(objective, dict):
+            result.update(str(item) for item in objective.get("memory_refs", []))
     return result
 
 
@@ -306,6 +354,11 @@ def _canonical_fields(plan: dict[str, Any] | None) -> list[str]:
     values.extend(
         item.get("field")
         for item in plan.get("fact_questions", [])
+        if isinstance(item, dict)
+    )
+    values.extend(
+        item.get("field")
+        for item in plan.get("ranking_objectives", [])
         if isinstance(item, dict)
     )
     return list(dict.fromkeys(str(item) for item in values if item))
@@ -389,6 +442,9 @@ def _outcome(
             "unavailable_requested_values": product_result.get(
                 "unavailable_requested_values", []
             ),
+            "ranking_applied": product_result.get("ranking_applied", False),
+            "ranking_objectives": product_result.get("ranking_objectives", []),
+            "plan_corrections": product_result.get("plan_corrections", []),
         }
     if document_result:
         return {
@@ -460,6 +516,9 @@ def _narrative(
             )
         else:
             sentences.append(_result_sentence(product_result, retrieval_executed))
+            ranking_sentence = _ranking_sentence(product_result)
+            if ranking_sentence:
+                sentences.append(ranking_sentence)
             unavailable = _unavailable_sentence(product_result, product_retrieval)
             if unavailable:
                 sentences.append(unavailable)
@@ -577,6 +636,12 @@ def _clarification_reason(clarification: dict[str, Any]) -> str:
         return "Məcburi şərtin dəyəri kataloqdakı unikal facet dəyərinə çevrilə bilmədi."
     if "model_requested_clarification" in reasons:
         return "İstifadəçinin nəzərdə tutduğu seçim cümlədən təhlükəsiz şəkildə müəyyən edilmədi."
+    if "numeric_value_not_grounded" in reasons:
+        return "Plandakı konkret rəqəm cari mesaj, typed yaddaş və ya kataloq faktı ilə təsdiqlənmədi."
+    if "unsupported_ranking_objective" in reasons:
+        return "İstənilən keyfiyyət meyarı bu kateqoriyanın ölçülə bilən kataloq sahəsi deyil."
+    if "unbound_selected_entity" in reasons:
+        return "Planda bir neçə məhsul seçimi var, lakin onların seçim münasibəti göstərilməyib."
     return "Semantic plan təhlükəsiz və unikal kataloq sorğusuna çevrilə bilmədi."
 
 
@@ -645,6 +710,30 @@ def _unavailable_sentence(
     return (
         f"{_join_words(values)} seçimi kataloq facet-lərində mövcud olmadığı üçün "
         "nəticəyə daxil edilmədi."
+    )
+
+
+def _ranking_sentence(result: dict[str, Any]) -> str:
+    if not result.get("ranking_applied"):
+        return ""
+    objectives = [
+        item for item in result.get("ranking_objectives", []) if isinstance(item, dict)
+    ]
+    if not objectives:
+        return ""
+    rendered = [
+        (
+            f"{item.get('field')} sahəsində "
+            f"{'böyük/yüksək' if item.get('direction') == 'maximize' else 'kiçik/aşağı'} "
+            f"dəyərlər"
+        )
+        for item in objectives
+    ]
+    inferred = any(item.get("origin") == "inferred" for item in objectives)
+    suffix = " Bu meyarların bir hissəsi istifadə məqsədindən ehtimal kimi çıxarılıb." if inferred else ""
+    return (
+        f"Namizədlər konkret hədd uydurulmadan {_join_words(rendered)} üstünlüyünə görə sıralandı."
+        f"{suffix}"
     )
 
 

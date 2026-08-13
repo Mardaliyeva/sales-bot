@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from dataclasses import dataclass, replace
 from itertools import product
 from typing import Any
@@ -14,11 +15,12 @@ from app.tools.schemas import (
     FactQuestion,
     ProductQueryPlan,
     ProductSearchArguments,
+    RankingObjective,
     SemanticExpression,
     SemanticPredicate,
 )
 
-SEMANTIC_PLAN_VERSION = "product-query-plan-v3-typed-memory"
+SEMANTIC_PLAN_VERSION = "product-query-plan-v4-directional-ranking"
 PRICE_FIELDS = frozenset({"price", "sale_price"})
 STOCK_FIELDS = frozenset({"stock_status", "in_stock"})
 TOP_LEVEL_FIELDS = frozenset(
@@ -49,6 +51,9 @@ class SemanticPlanCompilation:
     facet_mapping: tuple[dict[str, Any], ...] = ()
     unavailable_requested_values: tuple[dict[str, Any], ...] = ()
     deterministic_empty: bool = False
+    plan_corrections: tuple[dict[str, Any], ...] = ()
+    numeric_provenance: tuple[dict[str, Any], ...] = ()
+    field_capability_resolution: tuple[dict[str, Any], ...] = ()
 
 
 class SemanticPlanValidationError(ValueError):
@@ -68,29 +73,48 @@ def compile_semantic_plan(
         catalog,
     )
     plan = _canonicalize_selected_entities(plan)
-    active_entities = [entity for entity in plan.entities if entity.state == "selected"]
-    resolutions = tuple(
-        _resolve_superseding_entity(
-            entity,
-            plan,
-            catalog,
-            EntityResolution(
-                entity.entity_id,
-                entity.raw_text,
-                "resolved",
-                overrides[entity.entity_id],
-                (),
-                "semantic_unique_candidate",
-            )
-            if entity.entity_id in overrides
-            and catalog.product_by_id(overrides[entity.entity_id]) is not None
-            else _resolve_entity(entity, catalog),
-        )
-        for entity in active_entities
-    )
+    resolutions = _resolve_plan_entities(plan, catalog, overrides)
     evidence_validation = validate_evidence(source_plan, resolutions=resolutions)
+    (
+        plan,
+        resolutions,
+        plan_corrections,
+        capability_resolution,
+        projection_issue,
+    ) = _project_grounded_plan(
+        plan,
+        catalog,
+        resolutions=resolutions,
+        evidence_validation=evidence_validation,
+        resolution_overrides=overrides,
+    )
+    dropped_entities = {
+        str(item.get("entity_id"))
+        for item in plan_corrections
+        if item.get("action") == "dropped_ungrounded_entity"
+    }
+    dropped_ranking_fields = {
+        str(item.get("field"))
+        for item in plan_corrections
+        if item.get("action") == "dropped_inferred_ranking_objective"
+    }
+    evidence_validation = [
+        item
+        for item in evidence_validation
+        if not (
+            item["source"].startswith("entity:")
+            and item["source"].split(":", 1)[1] in dropped_entities
+        )
+        and not (
+            item["source"].startswith("ranking_objective:")
+            and _ranking_evidence_field(item["source"], source_plan)
+            in dropped_ranking_fields
+        )
+    ]
     invalid_evidence = [item for item in evidence_validation if not item["valid"]]
     memory_issue = validate_memory_references(plan, resolutions=resolutions)
+    numeric_provenance = _validate_numeric_provenance(plan, catalog)
+    invalid_numeric = [item for item in numeric_provenance if not item["valid"]]
     canonical = plan.model_dump(mode="json", exclude_none=True)
     canonical_hash = hashlib.sha256(
         json.dumps(
@@ -98,6 +122,11 @@ def compile_semantic_plan(
                 "plan_version": SEMANTIC_PLAN_VERSION,
                 "catalog_schema_version": catalog.manifest.get("dataset_version"),
                 "catalog_checksum": catalog.manifest.get("checksums", {}).get("schema_sha256"),
+                "field_capability_checksum": getattr(
+                    catalog,
+                    "field_capability_checksum",
+                    None,
+                ),
                 "plan": canonical,
             },
             ensure_ascii=False,
@@ -117,8 +146,21 @@ def compile_semantic_plan(
             for question in plan.fact_questions
             if not catalog.supports_field(question.field)
         }
+        | {
+            objective.field
+            for objective in plan.ranking_objectives
+            if not catalog.supports_field(objective.field)
+        }
     )
-    if invalid_evidence or invalid_fields or memory_issue:
+    sort_conflict = _ranking_sort_conflict(plan)
+    if (
+        invalid_evidence
+        or invalid_fields
+        or memory_issue
+        or invalid_numeric
+        or projection_issue
+        or sort_conflict
+    ):
         reasons = []
         if invalid_evidence:
             reasons.append("evidence_not_grounded")
@@ -126,65 +168,90 @@ def compile_semantic_plan(
             reasons.append("unsupported_catalog_field")
         if memory_issue:
             reasons.append("invalid_memory_reference")
+        if invalid_numeric:
+            reasons.append("numeric_value_not_grounded")
+        if projection_issue:
+            reasons.append(str(projection_issue["reason"]))
+        if sort_conflict:
+            reasons.append("conflicting_ranking_direction")
         return SemanticPlanCompilation(
-            plan,
-            canonical,
-            canonical_hash,
-            evidence_validation,
-            (),
-            (),
-            {
+            plan=plan,
+            canonical_plan=canonical,
+            canonical_hash=canonical_hash,
+            evidence_validation=evidence_validation,
+            resolutions=(),
+            arguments=(),
+            clarification={
                 "reason": ",".join(reasons),
-                "question": "Sorğunu bir qədər dəqiqləşdirə bilərsiniz?",
+                "question": (
+                    projection_issue.get("question")
+                    if projection_issue
+                    else "Sorğunu bir qədər dəqiqləşdirə bilərsiniz?"
+                ),
                 "invalid_fields": invalid_fields,
                 "memory_issue": memory_issue,
+                "numeric_issues": invalid_numeric,
+                "ranking_conflict": sort_conflict,
             },
-            tuple(facet_mapping),
-            tuple(unavailable_values),
+            facet_mapping=tuple(facet_mapping),
+            unavailable_requested_values=tuple(unavailable_values),
+            plan_corrections=tuple(plan_corrections),
+            numeric_provenance=tuple(numeric_provenance),
+            field_capability_resolution=tuple(capability_resolution),
         )
     if grounding_issue is not None:
         return SemanticPlanCompilation(
-            plan,
-            canonical,
-            canonical_hash,
-            evidence_validation,
-            (),
-            (),
-            grounding_issue,
-            tuple(facet_mapping),
-            tuple(unavailable_values),
+            plan=plan,
+            canonical_plan=canonical,
+            canonical_hash=canonical_hash,
+            evidence_validation=evidence_validation,
+            resolutions=(),
+            arguments=(),
+            clarification=grounding_issue,
+            facet_mapping=tuple(facet_mapping),
+            unavailable_requested_values=tuple(unavailable_values),
+            plan_corrections=tuple(plan_corrections),
+            numeric_provenance=tuple(numeric_provenance),
+            field_capability_resolution=tuple(capability_resolution),
         )
     _validate_predicate_types(plan)
     if plan.needs_clarification:
         return SemanticPlanCompilation(
-            plan,
-            canonical,
-            canonical_hash,
-            evidence_validation,
-            (),
-            (),
-            {
+            plan=plan,
+            canonical_plan=canonical,
+            canonical_hash=canonical_hash,
+            evidence_validation=evidence_validation,
+            resolutions=(),
+            arguments=(),
+            clarification={
                 "reason": "model_requested_clarification",
                 "question": plan.clarification_question,
             },
-            tuple(facet_mapping),
-            tuple(unavailable_values),
+            facet_mapping=tuple(facet_mapping),
+            unavailable_requested_values=tuple(unavailable_values),
+            plan_corrections=tuple(plan_corrections),
+            numeric_provenance=tuple(numeric_provenance),
+            field_capability_resolution=tuple(capability_resolution),
         )
 
     if _has_blocking_unavailable_filter(plan, unavailable_values):
         return SemanticPlanCompilation(
-            plan,
-            canonical,
-            canonical_hash,
-            evidence_validation,
-            resolutions,
-            (),
-            None,
-            tuple(facet_mapping),
-            tuple(unavailable_values),
-            True,
+            plan=plan,
+            canonical_plan=canonical,
+            canonical_hash=canonical_hash,
+            evidence_validation=evidence_validation,
+            resolutions=resolutions,
+            arguments=(),
+            clarification=None,
+            facet_mapping=tuple(facet_mapping),
+            unavailable_requested_values=tuple(unavailable_values),
+            deterministic_empty=True,
+            plan_corrections=tuple(plan_corrections),
+            numeric_provenance=tuple(numeric_provenance),
+            field_capability_resolution=tuple(capability_resolution),
         )
 
+    active_entities = [entity for entity in plan.entities if entity.state == "selected"]
     invalid_context_entities = [
         entity.entity_id
         for entity in active_entities
@@ -196,36 +263,42 @@ def compile_semantic_plan(
     ]
     if invalid_context_entities:
         return SemanticPlanCompilation(
-            plan,
-            canonical,
-            canonical_hash,
-            evidence_validation,
-            (),
-            (),
-            {
+            plan=plan,
+            canonical_plan=canonical,
+            canonical_hash=canonical_hash,
+            evidence_validation=evidence_validation,
+            resolutions=(),
+            arguments=(),
+            clarification={
                 "reason": "invalid_context_reference",
                 "question": "Hansı əvvəlki məhsulu nəzərdə tutursunuz?",
                 "entity_ids": invalid_context_entities,
             },
-            tuple(facet_mapping),
-            tuple(unavailable_values),
+            facet_mapping=tuple(facet_mapping),
+            unavailable_requested_values=tuple(unavailable_values),
+            plan_corrections=tuple(plan_corrections),
+            numeric_provenance=tuple(numeric_provenance),
+            field_capability_resolution=tuple(capability_resolution),
         )
     ambiguous = [resolution for resolution in resolutions if resolution.status == "ambiguous"]
     if ambiguous:
         return SemanticPlanCompilation(
-            plan,
-            canonical,
-            canonical_hash,
-            evidence_validation,
-            resolutions,
-            (),
-            {
+            plan=plan,
+            canonical_plan=canonical,
+            canonical_hash=canonical_hash,
+            evidence_validation=evidence_validation,
+            resolutions=resolutions,
+            arguments=(),
+            clarification={
                 "reason": "ambiguous_entity",
                 "question": "Hansı dəqiq məhsulu nəzərdə tutursunuz?",
                 "entity_ids": [item.entity_id for item in ambiguous],
             },
-            tuple(facet_mapping),
-            tuple(unavailable_values),
+            facet_mapping=tuple(facet_mapping),
+            unavailable_requested_values=tuple(unavailable_values),
+            plan_corrections=tuple(plan_corrections),
+            numeric_provenance=tuple(numeric_provenance),
+            field_capability_resolution=tuple(capability_resolution),
         )
 
     selection_filter, unsupported_selection = _selection_filter_expression(
@@ -233,18 +306,21 @@ def compile_semantic_plan(
     )
     if unsupported_selection:
         return SemanticPlanCompilation(
-            plan,
-            canonical,
-            canonical_hash,
-            evidence_validation,
-            resolutions,
-            (),
-            {
+            plan=plan,
+            canonical_plan=canonical,
+            canonical_hash=canonical_hash,
+            evidence_validation=evidence_validation,
+            resolutions=resolutions,
+            arguments=(),
+            clarification={
                 "reason": "mixed_selection_expression",
                 "question": "Məhsul seçimlərini və şərtləri ayrıca dəqiqləşdirə bilərsiniz?",
             },
-            tuple(facet_mapping),
-            tuple(unavailable_values),
+            facet_mapping=tuple(facet_mapping),
+            unavailable_requested_values=tuple(unavailable_values),
+            plan_corrections=tuple(plan_corrections),
+            numeric_provenance=tuple(numeric_provenance),
+            field_capability_resolution=tuple(capability_resolution),
         )
     effective_filter = _conjoin_expressions(plan.filter_expression, selection_filter)
     resolved_selection_filter = (
@@ -310,16 +386,430 @@ def compile_semantic_plan(
                     )
                 )
     return SemanticPlanCompilation(
-        plan,
-        canonical,
-        canonical_hash,
-        evidence_validation,
-        resolutions,
-        tuple(arguments),
-        None,
-        tuple(facet_mapping),
-        tuple(unavailable_values),
+        plan=plan,
+        canonical_plan=canonical,
+        canonical_hash=canonical_hash,
+        evidence_validation=evidence_validation,
+        resolutions=resolutions,
+        arguments=tuple(arguments),
+        clarification=None,
+        facet_mapping=tuple(facet_mapping),
+        unavailable_requested_values=tuple(unavailable_values),
+        plan_corrections=tuple(plan_corrections),
+        numeric_provenance=tuple(numeric_provenance),
+        field_capability_resolution=tuple(capability_resolution),
     )
+
+
+def _resolve_plan_entities(
+    plan: ProductQueryPlan,
+    catalog: CatalogBackend,
+    overrides: dict[str, str],
+) -> tuple[EntityResolution, ...]:
+    return tuple(
+        _resolve_superseding_entity(
+            entity,
+            plan,
+            catalog,
+            EntityResolution(
+                entity.entity_id,
+                entity.raw_text,
+                "resolved",
+                overrides[entity.entity_id],
+                (),
+                "semantic_unique_candidate",
+            )
+            if entity.entity_id in overrides
+            and catalog.product_by_id(overrides[entity.entity_id]) is not None
+            else _resolve_entity(entity, catalog),
+        )
+        for entity in plan.entities
+        if entity.state == "selected"
+    )
+
+
+def _project_grounded_plan(
+    plan: ProductQueryPlan,
+    catalog: CatalogBackend,
+    *,
+    resolutions: tuple[EntityResolution, ...],
+    evidence_validation: list[dict[str, Any]],
+    resolution_overrides: dict[str, str],
+) -> tuple[
+    ProductQueryPlan,
+    tuple[EntityResolution, ...],
+    list[dict[str, Any]],
+    list[dict[str, Any]],
+    dict[str, Any] | None,
+]:
+    corrections: list[dict[str, Any]] = []
+    evidence = {str(item["source"]): item for item in evidence_validation}
+    query = normalize_text(plan.query)
+    referenced_entities = _entity_refs(plan.selection_expression)
+    category_values = {
+        str(predicate.value)
+        for predicate in (
+            iter_predicates(plan.filter_expression)
+            if plan.filter_expression is not None
+            else []
+        )
+        if predicate.field == "category_id"
+        and predicate.operator == "eq"
+        and predicate.strength == "hard"
+    }
+
+    retained_entities = []
+    for entity in plan.entities:
+        validation = evidence.get(f"entity:{entity.entity_id}", {})
+        raw_is_current = bool(normalize_text(entity.raw_text)) and normalize_text(
+            entity.raw_text
+        ) in query
+        safely_orphaned = (
+            entity.state == "selected"
+            and not validation.get("valid")
+            and not raw_is_current
+            and entity.entity_id not in referenced_entities
+            and plan.operation != "compare"
+            and not plan.fact_questions
+            and bool(category_values)
+        )
+        if safely_orphaned:
+            corrections.append(
+                {
+                    "action": "dropped_ungrounded_entity",
+                    "entity_id": entity.entity_id,
+                    "raw_text": entity.raw_text,
+                    "reason": "orphan_without_current_or_typed_memory_evidence",
+                }
+            )
+            continue
+        retained_entities.append(entity)
+
+    if len(retained_entities) != len(plan.entities):
+        plan = plan.model_copy(update={"entities": retained_entities})
+        plan = _canonicalize_selected_entities(plan)
+        resolutions = _resolve_plan_entities(plan, catalog, resolution_overrides)
+        evidence_validation = validate_evidence(plan, resolutions=resolutions)
+        evidence = {str(item["source"]): item for item in evidence_validation}
+
+    capability_resolution: list[dict[str, Any]] = []
+    retained_objectives: list[RankingObjective] = []
+    unsupported_explicit: list[str] = []
+    for index, objective in enumerate(plan.ranking_objectives):
+        capability = catalog.field_capability(objective.field)
+        category_supported = bool(capability) and (
+            not category_values or bool(set(capability.categories) & category_values)
+        )
+        supported = bool(capability and capability.sortable and category_supported)
+        entry = {
+            "index": index,
+            "field": objective.field,
+            "direction": objective.direction,
+            "origin": objective.origin,
+            "supported": supported,
+            "categories": list(capability.categories) if capability else [],
+            "value_type": capability.value_type if capability else None,
+            "coverage_ratio": capability.coverage_ratio if capability else 0.0,
+            "qdrant_payload_key": capability.qdrant_payload_key if capability else None,
+        }
+        capability_resolution.append(entry)
+        validation = evidence.get(f"ranking_objective:{index}", {})
+        if objective.origin == "inferred" and (not supported or not validation.get("valid")):
+            corrections.append(
+                {
+                    "action": "dropped_inferred_ranking_objective",
+                    "field": objective.field,
+                    "reason": (
+                        "unsupported_catalog_capability"
+                        if not supported
+                        else "evidence_not_grounded"
+                    ),
+                }
+            )
+            continue
+        if not supported:
+            unsupported_explicit.append(objective.field)
+        retained_objectives.append(objective)
+
+    if retained_objectives != plan.ranking_objectives:
+        plan = plan.model_copy(update={"ranking_objectives": retained_objectives})
+
+    if unsupported_explicit:
+        fields = sorted(set(unsupported_explicit))
+        return (
+            plan,
+            resolutions,
+            corrections,
+            capability_resolution,
+            {
+                "reason": "unsupported_ranking_objective",
+                "question": (
+                    "Bu seçim meyarı kataloqda ölçülmür. Başqa yoxlanılan xüsusiyyət "
+                    "deyə bilərsiniz?"
+                ),
+                "fields": fields,
+            },
+        )
+
+    selected = [entity for entity in plan.entities if entity.state == "selected"]
+    if len(selected) == 1 and plan.selection_expression is None:
+        item = evidence.get(f"entity:{selected[0].entity_id}", {})
+        resolution = resolutions[0] if resolutions else None
+        if item.get("valid") and resolution is not None:
+            plan = plan.model_copy(
+                update={
+                    "selection_expression": SemanticExpression(
+                        kind="entity_ref",
+                        entity_id=selected[0].entity_id,
+                    )
+                }
+            )
+            corrections.append(
+                {
+                    "action": "added_implicit_entity_ref",
+                    "entity_id": selected[0].entity_id,
+                    "reason": "single_grounded_selected_entity_compatibility",
+                }
+            )
+
+    selected = [entity for entity in plan.entities if entity.state == "selected"]
+    bound_entity_ids = _entity_refs(plan.selection_expression)
+    unbound_entities = [
+        entity for entity in selected if entity.entity_id not in bound_entity_ids
+    ]
+    if unbound_entities and plan.selection_expression is None and _entities_represented_by_filter(
+        plan,
+        selected,
+    ):
+        removed_ids = {entity.entity_id for entity in selected}
+        plan = plan.model_copy(
+            update={
+                "entities": [
+                    entity
+                    for entity in plan.entities
+                    if entity.entity_id not in removed_ids
+                ]
+            }
+        )
+        resolutions = ()
+        corrections.append(
+            {
+                "action": "dropped_redundant_filter_entities",
+                "entity_ids": sorted(removed_ids),
+                "reason": "selection_meaning_preserved_by_hard_filter",
+            }
+        )
+        unbound_entities = []
+    if unbound_entities:
+        return (
+            plan,
+            resolutions,
+            corrections,
+            capability_resolution,
+            {
+                "reason": "unbound_selected_entity",
+                "question": "Məhsul seçimlərindən hansının aktiv olduğunu dəqiqləşdirə bilərsiniz?",
+                "entity_ids": [entity.entity_id for entity in unbound_entities],
+            },
+        )
+
+    if (
+        corrections
+        and not plan.entities
+        and not plan.ranking_objectives
+        and plan.filter_expression is None
+    ):
+        return (
+            plan,
+            resolutions,
+            corrections,
+            capability_resolution,
+            {
+                "reason": "grounded_plan_empty",
+                "question": "Hansı məhsul növünü və əsas seçiminizi nəzərdə tutursunuz?",
+            },
+        )
+    return plan, resolutions, corrections, capability_resolution, None
+
+
+def _entity_refs(expression: SemanticExpression | None) -> set[str]:
+    if expression is None:
+        return set()
+    result = {expression.entity_id} if expression.kind == "entity_ref" and expression.entity_id else set()
+    for child in expression.expressions or []:
+        result.update(_entity_refs(child))
+    for child in (expression.expression, expression.primary, expression.secondary):
+        result.update(_entity_refs(child))
+    return result
+
+
+def _ranking_evidence_field(source: str, plan: ProductQueryPlan) -> str | None:
+    try:
+        index = int(source.rsplit(":", 1)[1])
+        return plan.ranking_objectives[index].field
+    except (IndexError, TypeError, ValueError):
+        return None
+
+
+def _validate_numeric_provenance(
+    plan: ProductQueryPlan,
+    catalog: CatalogBackend,
+) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    memory_items = _context_memory_items(plan)
+
+    def validate(
+        *,
+        source: str,
+        field: str,
+        value: Any,
+        unit: str | None,
+        provenance: str | None,
+        source_product_id: str | None,
+        evidence_text: str,
+        memory_refs: list[str],
+        expected_memory_kind: str,
+    ) -> None:
+        capability = catalog.field_capability(field)
+        if not capability or capability.value_type != "number" or value is None:
+            return
+        values = value if isinstance(value, list) else [value]
+        if any(isinstance(item, bool) or not isinstance(item, (int, float)) for item in values):
+            return
+        evidence_numbers = _numeric_literals(evidence_text)
+        literal_matches = all(
+            any(abs(float(item) - literal) <= 1e-9 for literal in evidence_numbers)
+            for item in values
+        )
+        referenced_items = [memory_items.get(memory_id, {}) for memory_id in memory_refs]
+        typed_memory_available = bool(referenced_items) and all(
+            item.get("kind") == expected_memory_kind for item in referenced_items
+        )
+        typed_memory_matches = typed_memory_available and any(
+            item.get("field") == field
+            and _numeric_memory_value_matches(item.get("value"), values)
+            and (unit is None or item.get("unit") in {None, unit})
+            for item in referenced_items
+        )
+        unit_valid = (
+            unit is None
+            or capability.unit is None
+            or normalize_text(unit) == normalize_text(capability.unit)
+        )
+        resolved_provenance = provenance or (
+            "memory"
+            if typed_memory_available
+            else "current_message"
+            if literal_matches
+            else None
+        )
+        valid = False
+        detail = "missing_or_invalid_provenance"
+        if resolved_provenance == "current_message":
+            valid = (
+                literal_matches
+                and normalize_text(evidence_text) in normalize_text(plan.query)
+                and unit_valid
+            )
+            detail = "numeric_literal_verified" if valid else "numeric_literal_not_in_evidence"
+        elif resolved_provenance == "memory":
+            valid = typed_memory_matches and unit_valid
+            detail = "typed_memory_verified" if valid else "typed_memory_value_mismatch"
+        elif resolved_provenance == "catalog_attribute":
+            product = (
+                catalog.product_by_id(source_product_id)
+                if source_product_id
+                and source_product_id in set(plan.context_product_ids)
+                else None
+            )
+            actual = _product_value(product, field) if product is not None else None
+            valid = len(values) == 1 and _numeric_equal(actual, values[0])
+            detail = "catalog_attribute_verified" if valid else "catalog_attribute_not_verified"
+        result.append(
+            {
+                "source": source,
+                "field": field,
+                "value": value,
+                "declared_provenance": provenance,
+                "resolved_provenance": resolved_provenance,
+                "source_product_id": source_product_id,
+                "valid": valid,
+                "detail": detail,
+            }
+        )
+
+    for expression_index, expression in enumerate(_plan_expressions(plan)):
+        for predicate_index, predicate in enumerate(iter_predicates(expression)):
+            validate(
+                source=f"predicate:{expression_index}:{predicate_index}",
+                field=predicate.field,
+                value=predicate.value,
+                unit=predicate.unit,
+                provenance=predicate.value_provenance,
+                source_product_id=predicate.value_source_product_id,
+                evidence_text=predicate.evidence_text,
+                memory_refs=predicate.memory_refs,
+                expected_memory_kind="predicate",
+            )
+    for index, question in enumerate(plan.fact_questions):
+        validate(
+            source=f"fact_question:{index}",
+            field=question.field,
+            value=question.value,
+            unit=question.unit,
+            provenance=question.value_provenance,
+            source_product_id=question.value_source_product_id,
+            evidence_text=question.evidence_text,
+            memory_refs=question.memory_refs,
+            expected_memory_kind="fact_question",
+        )
+    return result
+
+
+def _numeric_literals(value: str) -> tuple[float, ...]:
+    matches = re.findall(r"(?<![\w])[-+]?\d+(?:[.,]\d+)?(?![\w])", value)
+    return tuple(float(item.replace(",", ".")) for item in matches)
+
+
+def _numeric_equal(left: Any, right: Any) -> bool:
+    try:
+        return abs(float(left) - float(right)) <= 1e-9
+    except (TypeError, ValueError):
+        return False
+
+
+def _numeric_memory_value_matches(memory_value: Any, expected: list[Any]) -> bool:
+    memory_values = memory_value if isinstance(memory_value, list) else [memory_value]
+    return len(memory_values) == len(expected) and all(
+        any(_numeric_equal(left, right) for right in expected)
+        for left in memory_values
+    )
+
+
+def _ranking_sort_conflict(plan: ProductQueryPlan) -> dict[str, Any] | None:
+    sort_objectives = {
+        "price_asc": ("sale_price", "minimize"),
+        "price_desc": ("sale_price", "maximize"),
+        "rating_desc": ("rating", "maximize"),
+    }
+    expected = sort_objectives.get(plan.sort)
+    if expected is None:
+        return None
+    field, direction = expected
+    conflicts = [
+        item
+        for item in plan.ranking_objectives
+        if item.field in {field, "price" if field == "sale_price" else field}
+        and item.direction != direction
+    ]
+    if not conflicts:
+        return None
+    return {
+        "sort": plan.sort,
+        "field": field,
+        "sort_direction": direction,
+        "objective_directions": sorted({item.direction for item in conflicts}),
+    }
 
 
 def validate_evidence(
@@ -362,6 +852,14 @@ def validate_evidence(
         for index, question in enumerate(plan.fact_questions)
     )
     values.extend(
+        (
+            f"ranking_objective:{index}",
+            objective.evidence_text,
+            objective.memory_refs,
+        )
+        for index, objective in enumerate(plan.ranking_objectives)
+    )
+    values.extend(
         (f"memory_removal:{index}", removal.evidence_text, [])
         for index, removal in enumerate(plan.memory_removals)
     )
@@ -378,6 +876,8 @@ def validate_evidence(
             if source.startswith("predicate:")
             else "fact_question"
             if source.startswith("fact_question:")
+            else "ranking_objective"
+            if source.startswith("ranking_objective:")
             else None
         )
         memory_valid = (
@@ -425,6 +925,8 @@ def validate_memory_references(
             nested_refs.update(predicate.memory_refs)
     for question in plan.fact_questions:
         nested_refs.update(question.memory_refs)
+    for objective in plan.ranking_objectives:
+        nested_refs.update(objective.memory_refs)
     declared_refs = set(plan.referenced_memory_ids)
     removed_refs = set(plan.removed_memory_ids)
     invalid_ids = sorted((declared_refs | removed_refs | nested_refs) - known_ids)
@@ -504,6 +1006,29 @@ def validate_memory_references(
         ]
         if not any(_fact_question_matches_memory(question, item) for item in referenced_questions):
             invalid_inherited_fact_questions.append(question.field)
+    invalid_inherited_ranking_objectives = []
+    for objective in plan.ranking_objectives:
+        reference_type_mismatches.extend(
+            _reference_type_mismatches(
+                objective.memory_refs,
+                items,
+                expected_kind="ranking_objective",
+                source=f"ranking_objective:{objective.field}",
+            )
+        )
+        normalized = normalize_text(objective.evidence_text)
+        if normalized and normalized in query:
+            continue
+        referenced_objectives = [
+            items[memory_id]
+            for memory_id in objective.memory_refs
+            if items.get(memory_id, {}).get("kind") == "ranking_objective"
+        ]
+        if not any(
+            _ranking_objective_matches_memory(objective, item)
+            for item in referenced_objectives
+        ):
+            invalid_inherited_ranking_objectives.append(objective.field)
     action_without_memory = (
         plan.memory_action in {"merge", "preserve"}
         and not known_ids
@@ -517,6 +1042,7 @@ def validate_memory_references(
         and not mutated_inherited_predicates
         and not invalid_inherited_entities
         and not invalid_inherited_fact_questions
+        and not invalid_inherited_ranking_objectives
         and not reference_type_mismatches
         and not action_without_memory
     ):
@@ -529,6 +1055,9 @@ def validate_memory_references(
         "mutated_inherited_predicates": sorted(set(mutated_inherited_predicates)),
         "invalid_inherited_entities": sorted(set(invalid_inherited_entities)),
         "invalid_inherited_fact_questions": sorted(set(invalid_inherited_fact_questions)),
+        "invalid_inherited_ranking_objectives": sorted(
+            set(invalid_inherited_ranking_objectives)
+        ),
         "legacy_predicate_entity_refs": sorted(set(legacy_predicate_entity_refs)),
         "reference_type_mismatches": reference_type_mismatches,
         "memory_action": plan.memory_action,
@@ -679,6 +1208,20 @@ def _fact_question_matches_memory(
     )
 
 
+def _ranking_objective_matches_memory(
+    objective: RankingObjective,
+    memory_item: dict[str, Any],
+) -> bool:
+    return all(
+        (
+            objective.field == memory_item.get("field"),
+            objective.direction == memory_item.get("direction"),
+            objective.priority == memory_item.get("priority"),
+            objective.origin in {"memory", memory_item.get("origin")},
+        )
+    )
+
+
 def _context_memory_items(plan: ProductQueryPlan) -> dict[str, dict[str, Any]]:
     memory = plan.context_memory if isinstance(plan.context_memory, dict) else {}
     product_state = (
@@ -722,6 +1265,13 @@ def _add_context_state_items(
         if isinstance(item, dict) and item.get("memory_id"):
             result[str(item["memory_id"])] = {
                 "kind": "fact_question",
+                "scope": scope,
+                **item,
+            }
+    for item in state.get("ranking_objectives", []):
+        if isinstance(item, dict) and item.get("memory_id"):
+            result[str(item["memory_id"])] = {
+                "kind": "ranking_objective",
                 "scope": scope,
                 **item,
             }
@@ -809,6 +1359,7 @@ def _arguments_for_plan(
         "limit": min(plan.limit, 3),
         "semantic_filter_expression": filter_expression,
         "semantic_preference_expression": plan.preference_expression,
+        "semantic_ranking_objectives": plan.ranking_objectives,
         "semantic_plan_compiled": True,
     }
     updates["requested_fields"] = list(dict.fromkeys(updates["requested_fields"]))

@@ -21,6 +21,10 @@ PredicateStrength = Literal["hard", "preference"]
 EntityState = Literal["selected", "superseded"]
 IdentifierType = Literal["auto", "product_id", "sku", "model", "model_family"]
 MemoryAction = Literal["replace", "merge", "preserve"]
+RankingDirection = Literal["maximize", "minimize"]
+RankingPriority = Literal["primary", "normal", "inferred"]
+RankingOrigin = Literal["explicit", "inferred", "memory"]
+ValueProvenance = Literal["current_message", "memory", "catalog_attribute"]
 AttributeOperator = Literal["eq", "gte", "lte", "in", "contains_any"]
 AttributeField = Literal[
     "active_noise_cancellation",
@@ -164,6 +168,21 @@ class SemanticPredicate(BaseModel):
     )
     strength: PredicateStrength
     unit: str | None = Field(default=None, max_length=30)
+    value_provenance: ValueProvenance | None = Field(
+        default=None,
+        description=(
+            "Required for concrete numeric values: current_message for an explicit literal, "
+            "memory for a typed inherited predicate, or catalog_attribute for a verified "
+            "context product fact"
+        ),
+    )
+    value_source_product_id: str | None = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Server-provided context product ID used only when value_provenance=catalog_attribute"
+        ),
+    )
     evidence_text: str = Field(
         min_length=1,
         max_length=300,
@@ -311,6 +330,20 @@ class FactQuestion(BaseModel):
         max_length=30,
         description="Explicit unit for the compared value, if any",
     )
+    value_provenance: ValueProvenance | None = Field(
+        default=None,
+        description=(
+            "Source of an explicit numeric comparison value. Omit when the question asks only "
+            "for the field value"
+        ),
+    )
+    value_source_product_id: str | None = Field(
+        default=None,
+        max_length=120,
+        description=(
+            "Server-provided context product ID used only when value_provenance=catalog_attribute"
+        ),
+    )
     evidence_text: str = Field(
         min_length=1,
         max_length=300,
@@ -323,6 +356,45 @@ class FactQuestion(BaseModel):
         max_length=5,
         description="Only typed fact_question IDs from verified session memory",
     )
+
+
+class RankingObjective(BaseModel):
+    """A value-free directional preference interpreted by the model."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    field: str = Field(
+        min_length=1,
+        max_length=100,
+        description=(
+            "One numeric catalog field from the supplied field-capability metadata. The field "
+            "must be sortable for the relevant product category"
+        ),
+    )
+    direction: RankingDirection
+    priority: RankingPriority = "normal"
+    origin: RankingOrigin = "explicit"
+    evidence_text: str = Field(
+        min_length=1,
+        max_length=300,
+        description=(
+            "Shortest unchanged current-message span supporting the direction, or a concise "
+            "description when origin=inferred"
+        ),
+    )
+    memory_refs: list[str] = Field(
+        default_factory=list,
+        max_length=5,
+        description="Only typed ranking_objective IDs from verified session memory",
+    )
+
+    @model_validator(mode="after")
+    def validate_origin_and_priority(self) -> RankingObjective:
+        if self.origin == "inferred" and self.priority != "inferred":
+            raise ValueError("inferred ranking objectives require priority=inferred")
+        if self.origin != "inferred" and self.priority == "inferred":
+            raise ValueError("priority=inferred requires origin=inferred")
+        return self
 
 
 class MemoryRemoval(BaseModel):
@@ -379,6 +451,14 @@ class ProductQueryPlan(BaseModel):
         description=(
             "Soft ranking preferences only. It must not contain required conditions or duplicate "
             "selection/filter meaning"
+        ),
+    )
+    ranking_objectives: list[RankingObjective] = Field(
+        default_factory=list,
+        max_length=3,
+        description=(
+            "Value-free directional goals such as maximizing a numeric feature or minimizing "
+            "price/weight. Never invent a threshold to represent a qualitative request"
         ),
     )
     fact_questions: list[FactQuestion] = Field(
@@ -444,6 +524,8 @@ class ProductQueryPlan(BaseModel):
             raise ValueError("semantic expression depth cannot exceed 6")
         if sum(expression.predicate_count() for expression in expressions) > 20:
             raise ValueError("semantic plan cannot contain more than 20 predicates")
+        if sum(item.origin == "inferred" for item in self.ranking_objectives) > 2:
+            raise ValueError("semantic plan cannot contain more than two inferred objectives")
 
         def validate_refs(expression: SemanticExpression) -> None:
             if expression.kind == "entity_ref" and expression.entity_id not in known_ids:
@@ -635,6 +717,11 @@ class ProductSearchArguments(BaseModel):
     limit: int = Field(default=5, ge=1, le=5)
     semantic_filter_expression: SemanticExpression | None = Field(default=None, exclude=True)
     semantic_preference_expression: SemanticExpression | None = Field(default=None, exclude=True)
+    semantic_ranking_objectives: list[RankingObjective] = Field(
+        default_factory=list,
+        max_length=3,
+        exclude=True,
+    )
     excluded_product_ids: list[str] = Field(default_factory=list, max_length=3, exclude=True)
     semantic_plan_compiled: bool = Field(default=False, exclude=True)
 
@@ -698,6 +785,7 @@ class ProductSearchItem(BaseModel):
     attributes: dict[str, Any]
     short_description: str
     differences: list[str] = Field(default_factory=list)
+    ranking_reasons: list[str] = Field(default_factory=list)
 
 
 class ProductSearchResult(BaseModel):
@@ -720,6 +808,9 @@ class ProductSearchResult(BaseModel):
     canonical_query_hash: str | None = None
     clarification: dict[str, Any] | None = None
     unavailable_requested_values: list[dict[str, Any]] = Field(default_factory=list)
+    ranking_applied: bool = False
+    ranking_objectives: list[RankingObjective] = Field(default_factory=list)
+    plan_corrections: list[dict[str, Any]] = Field(default_factory=list)
 
 
 SemanticExpression.model_rebuild()

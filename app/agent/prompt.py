@@ -131,8 +131,8 @@ PromptPhase = Literal["tool", "response", "safe_final"]
 
 CORE_PROMPT_VERSION = "core_v2"
 ROUTING_PROMPT_VERSION = "routing_v2"
-PLANNER_PROMPT_VERSION = "planner_v2"
-RESPONSE_PROMPT_VERSION = "response_v2"
+PLANNER_PROMPT_VERSION = "planner_v3"
+RESPONSE_PROMPT_VERSION = "response_v3"
 SAFE_FINAL_PROMPT_VERSION = "safe_final_v2"
 LEGACY_PROMPT_VERSION = "legacy_v1"
 
@@ -164,7 +164,8 @@ PRODUCT_PLANNER_PROMPT = """ProductQueryPlan müqaviləsi:
    referensini seçim münasibəti və ya dəyişməsi olduqda entities-də saxla.
 2. Entity-lər arasındakı münasibət selection_expression-a, bütün namizədlərə aid məcburi şərtlər
    filter_expression-a, yalnız sıralama üstünlükləri preference_expression-a, mövcud məhsul barədə
-   soruşulan faktlar fact_questions-a gedir. Eyni məna bu hissələrdən ikisində təkrarlana bilməz.
+   soruşulan faktlar fact_questions-a gedir. Konkret dəyəri olmayan istiqamətli keyfiyyət məqsədi
+   ranking_objectives-a gedir. Eyni məna bu hissələrdən ikisində təkrarlana bilməz.
    compare yalnız istifadəçi məhsulların fərqlərini və ya qarşılaşdırılmasını açıq istəyirsə seçilir.
    Sadəcə bir neçə brand/family üzrə məhsullara birlikdə baxmaq discover-dır; şərti sıra yoxdursa seçimlər
    uyğun canonical predicate-lərlə filter_expression daxilində any_of kimi göstərilir.
@@ -203,6 +204,10 @@ PRODUCT_PLANNER_PROMPT = """ProductQueryPlan müqaviləsi:
    Fakt sualı müəyyən müqayisənin doğru olub-olmadığını soruşursa həmin operator, value və unit
    fact_questions-da qorunur; sadəcə field adı yazmaq olmaz. Eyni kataloq faktı üçün price/sale_price kimi
    alias sahələri birlikdə əlavə etmə, schema-nın əsas canonical sahəsini bir dəfə istifadə et.
+   Rəqəmsiz istiqaməti capability metadata-sındakı numeric field və maximize/minimize ilə göstər;
+   hədd uydurma. Açıq məqsəd explicit, ehtiyatlı istifadə-məqsədi inferensiyası inferred/inferred olur,
+   hard filtr yaratmır və maksimum ikidir. Numeric value üçün mənbəyə uyğun current_message, memory və
+   ya catalog_attribute value_provenance yaz; mənbəsiz rəqəm yaratma.
 9. Cari mesajdan gələn hər entity, predicate, fact question və memory removal üçün evidence_text həmin
    mənanı əsaslandıran ən dar, dəyişdirilməmiş cari-mesaj parçasıdır. İrsi fakt yalnız verified memory
    ID-si ilə əsaslandırılır; süni evidence yaratma.
@@ -217,7 +222,8 @@ Sessiya memory müqaviləsi:
 - pending_intent root ID yalnız bütöv pending məqsədin davam etdiyini göstərmək üçün
   referenced_memory_ids-də istifadə olunur; entity, predicate və fact memory_refs daxilində istifadə edilmir.
 - Entity memory_refs yalnız state.entities[].memory_id, predicate memory_refs yalnız hard_constraints və
-  preferences element ID-ləri, fact memory_refs yalnız fact_questions element ID-ləri qəbul edir.
+  preferences element ID-ləri, fact memory_refs yalnız fact_questions element ID-ləri, ranking memory_refs
+  yalnız ranking_objectives element ID-ləri qəbul edir.
 - Dəyişməyən hard şərtləri saxla. Açıq ləğv edilən ID-ni removed_memory_ids və current-message exact
   evidence daşıyan memory_removals-a yaz. Memory ID və context product ID uydurma.
 """
@@ -241,6 +247,8 @@ RESPONSE_PROMPT = """Yekun cavab müqaviləsi:
 - comparison-da istifadəçinin sualına aid əsas fərqləri qısa göstər. Məhsul və mağaza qaydası birlikdə
   soruşulubsa nəticələri iki qısa hissədə ayır.
 - Yalnız display_product_ids məhsullarından danış və recommended_product_id qərarını dəyişmə.
+- ranking_applied olduqda directional meyarı qısa izah et. Konkret hədd yoxdursa rəqəm uydurma;
+  inferred məqsədi istifadə etdiyini fərziyyə kimi açıq bildir.
 - Sadə lookup cavabı adətən 1–2 cümlədir. “Uyğun məhsul tapıldı”, nəticə sayı və kartların tam təkrarı
   kimi elanlardan qaç. Həqiqətən faydalı olduqda sonda yalnız bir qısa dəqiqləşdirici sual ver.
 - document_search cavabında yalnız chunk mətnindəki faktlardan istifadə et; filename, document_id,

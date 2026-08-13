@@ -23,6 +23,22 @@ def test_catalog_loads_canonical_dataset(catalog: ProductCatalog) -> None:
     assert catalog.manifest["validation"]["status"] == "passed"
 
 
+def test_catalog_builds_stable_bounded_field_capability_registry(
+    catalog: ProductCatalog,
+) -> None:
+    capabilities = catalog.field_capabilities()
+    display = catalog.field_capability("display_size_in")
+
+    assert capabilities == tuple(sorted(capabilities, key=lambda item: item.field))
+    assert len(catalog.field_capability_checksum) == 64
+    assert display is not None
+    assert display.value_type == "number"
+    assert display.sortable is True
+    assert "smartphones" in display.categories
+    assert display.coverage_count <= len(catalog.products)
+    assert all(not hasattr(item, "product_ids") for item in capabilities)
+
+
 def test_all_generated_records_have_consistent_encoded_attributes() -> None:
     assert check_catalog() == []
 

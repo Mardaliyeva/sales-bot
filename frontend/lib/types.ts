@@ -119,6 +119,15 @@ export type DebugRetrieval = {
   argument_corrections?: Array<Record<string, unknown>>;
   facet_mapping?: Array<Record<string, unknown>>;
   unavailable_requested_values?: Array<Record<string, unknown>>;
+  raw_semantic_plan?: Record<string, unknown>;
+  grounded_semantic_plan?: Record<string, unknown>;
+  numeric_provenance?: Array<Record<string, unknown>>;
+  plan_corrections?: Array<Record<string, unknown>>;
+  field_capability_resolution?: Array<Record<string, unknown>>;
+  ranking_mode?: "active" | "shadow" | "none";
+  ranking_objectives?: Array<Record<string, unknown>>;
+  candidate_generation_lanes?: Array<Record<string, unknown>>;
+  ranking_components?: Record<string, Record<string, unknown>>;
   constraint_conflicts?: string[];
   requested_label?: string | null;
   strict_total?: number;
