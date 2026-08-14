@@ -284,7 +284,7 @@ function MessageBubble({
     <article className={`message-row ${message.role}`} data-message-id={message.id}>
       {assistant ? (
         <span className="message-avatar" aria-hidden="true">
-          <Image src="/kontakt-robot.png" alt="" width={64} height={64} />
+          <Image src="/assistant-robot.png" alt="" width={64} height={64} />
         </span>
       ) : null}
       <div className={`message-content${productPresentation ? " product-message-content" : ""}`}>
@@ -491,8 +491,8 @@ export function ChatApp() {
       <aside className={`sidebar${sidebarOpen ? " open" : ""}`} aria-label="Söhbət naviqasiyası">
         <header className="sidebar-brand">
           <div className="brand-lockup">
-            <Image src="/kontakt-robot-head.png" alt="" width={44} height={44} priority />
-            <strong>Kontakt Satış Köməkçisi</strong>
+            <Image src="/assistant-robot-head.png" alt="" width={44} height={44} priority />
+            <strong>Satış Köməkçisi</strong>
           </div>
           <button
             className="sidebar-icon-button"
@@ -546,7 +546,7 @@ export function ChatApp() {
         <section className={`chat-thread${hasMessages ? " has-messages" : ""}`} aria-live="polite">
           {!hasMessages ? (
             <div className="empty-state">
-              <Image src="/kontakt-robot.png" alt="Kontakt satış köməkçisi" width={92} height={92} priority />
+              <Image src="/assistant-robot.png" alt="Satış köməkçisi" width={92} height={92} priority />
               <h1>Bu gün sənə necə kömək edə bilərəm?</h1>
             </div>
           ) : (
@@ -566,7 +566,7 @@ export function ChatApp() {
               {busy ? (
                 <article className="message-row assistant loading" aria-label="Cavab hazırlanır">
                   <span className="message-avatar" aria-hidden="true">
-                    <Image src="/kontakt-robot.png" alt="" width={64} height={64} />
+                    <Image src="/assistant-robot.png" alt="" width={64} height={64} />
                   </span>
                   <div className="message-bubble loading-bubble">
                     <LoaderCircle className="spinner" size={19} aria-hidden="true" />

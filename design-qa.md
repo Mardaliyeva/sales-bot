@@ -21,7 +21,7 @@
 - Typography: product values retain emphasis; `reytinq` and `zəmanət` labels are visibly smaller and lighter than `4.2` and `24 ay`.
 - Spacing: card padding, chip gaps, dividers, and the recommendation rhythm are consistent; the first red accent does not shift content unexpectedly.
 - Colors: neutral borders and background dominate; red is limited to the recommended accent, green to stock, and gold/gray to metadata icons.
-- Assets: the supplied Kontakt robot and the existing Lucide UI icons remain sharp; no placeholder or CSS-drawn assets were introduced.
+- Assets: the supplied assistant robot and the existing Lucide UI icons remain sharp; no placeholder or CSS-drawn assets were introduced.
 - Copy: announcement text, large count heading, count note, and promotional recommendation badge are absent. The intro is conversational and Azerbaijani price formatting is deterministic.
 
 ## Comparison history
